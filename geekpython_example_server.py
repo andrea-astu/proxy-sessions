@@ -1,6 +1,6 @@
 import websockets
 import asyncio
-import proxy_with_middle_v3 as proxy # check defs. don't clash
+import proxy_with_middle as proxy # check defs. don't clash
  
 # Creating WebSocket server
 async def ws_server(websocket):

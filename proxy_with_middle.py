@@ -159,40 +159,49 @@ async def handle_session(ses_server, ses_client, command, server_socket, client_
     print(f'carry out: {ses_server.kind}, {ses_client.kind}, from {command}') # DEBUG
     # websocket is client
     # always return two sessions, one for server and one for client!
-    if ses_server.kind == "end" and ses_client.kind == "end":
-        return End(), End() 
-    elif ses_server.kind == "single" and ses_client.kind == "single":
-        # protocol dir is SERVER'S dir!!
-        if ses_server.dir == "recv" and ses_client.dir == "send": # server has to recv; therefore first get thing from client and then send to server
-            payload_to_transport = await client_socket.recv()
-            print(f'payload from client: {payload_to_transport}') # DEBUG
-            await server_socket.send(payload_to_transport)
-            print("Message sent from client to server")
-            ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
-            return ref_return_server, ref_return_client
-        elif ses_server.dir == "send" and ses_client.dir == "recv":
-            payload_to_transport = await server_socket.recv()
-            await client_socket.send(payload_to_transport)
-            print(f'payload from server: {payload_to_transport}') # DEBUG
-            print("Message sent from server to client")
-            ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
-            return ref_return_server, ref_return_client
+    actual_sessions = (ses_server, ses_client) # initialize actual ses
+    ses_server_actual = actual_sessions[0]
+    ses_client_actual = actual_sessions[1]
+    while ses_server_actual.kind != "end" and ses_client_actual.kind != "end":
+        if ses_server_actual.kind == "single" and ses_client_actual.kind == "single":
+            if ses_server_actual.dir == "recv" and ses_client_actual.dir == "send": # server has to recv; therefore first get thing from client and then send to server
+                payload_to_transport = await client_socket.recv()
+                print(f'payload from client: {payload_to_transport}') # DEBUG
+                await server_socket.send(payload_to_transport)
+                print("Message sent from client to server")
+                # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
+                # actual_sessions = (ses_server_actual.cont, ses_client_actual.cont)
+            elif ses_server_actual.dir == "send" and ses_client_actual.dir == "recv":
+                payload_to_transport = await server_socket.recv()
+                await client_socket.send(payload_to_transport)
+                print(f'payload from server: {payload_to_transport}') # DEBUG
+                print("Message sent from server to client")
+                # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
+                # return ref_return_server, ref_return_client
+            else:
+                print ("The direction given to the Single session is not recognized")
+                return End(), End()
+            actual_sessions = (ses_server_actual.cont, ses_client_actual.cont) # in any case in single continue with cont
+        elif ses_server_actual.kind == "choice" and ses_client_actual.kind == "choice":
+            # ref_return_server, ref_return_client = await handle_session(ses_server_actual.lookup(Label(command)), ses_client_actual.lookup(Label(command)), command, server_socket, client_socket) # command has to be Label; will that work if str? or typecast as Label in proxy?
+            actual_sessions = (ses_server_actual.lookup(Label(command)), ses_client_actual.lookup(Label(command)))
+        elif ses_server_actual.kind == "ref" and ses_client_actual.kind == "ref": # ref ALWAYS returns session of type Choice!
+            print(f'referencing server session {ses_server_actual.name} and client session {ses_client_actual.name}') # DEBUG
+            found_server = protocol_info.lookup(ses_server_actual.name)
+            found_client = protocol_info.lookup(ses_client_actual.name)
+            print(f'actual ses. server session of type {found_server.kind}')
+            return found_server, found_client
         else:
-            print ("The direction given to the Single session is not recognized")
+            print ("Unknown session type or sessions don't match")
             return End(), End()
-    elif ses_server.kind == "choice" and ses_client.kind == "choice":
-        ref_return_server, ref_return_client = await handle_session(ses_server.lookup(Label(command)), ses_client.lookup(Label(command)), command, server_socket, client_socket) # command has to be Label; will that work if str? or typecast as Label in proxy?
-        return ref_return_server, ref_return_client
-    elif ses_server.kind == "ref" and ses_client.kind == "ref":
-        print(f'referencing server session {ses_server.name} and client session {ses_client.name}') # DEBUG
-        found_server = protocol_info.lookup(ses_server.name)
-        found_client = protocol_info.lookup(ses_client.name)
-        print(f'returning server session of type {found_server.kind}')
-        return found_server, found_client
-        # return protocol_info.lookup(ses.name) # try 
-    else:
-        print ("Unknown session type or sessions don't match")
-        return End(), End()
+        # necessary or automatically assigned if actual_sessions changes??
+        ses_server_actual = actual_sessions[0]
+        ses_client_actual = actual_sessions[1]
+    # if ses_server.kind == "end" and ses_client.kind == "end":
+        # return End(), End() 
+    # if ses_server_actual.kind == "end" and ses_client_actual.kind == "end":
+        # print ("Unknown session type or sessions don't match")
+    return End(), End()
     
 
 # type_socket can be "client" or "server"
@@ -204,7 +213,6 @@ async def define_protocols(ws_socket, type_socket:str):
     # sockets not needed to define a protocol, only session
     # await handle_session(ses=protocol_definition, command=None, server_socket=None, client_socket=None) # declares 1st protocol
     protocol_info.add(protocol_definition)
-
 
     while protocol_definition.kind != "end": # wait until server defines all protocols
         session_as_str = await ws_socket.recv()
