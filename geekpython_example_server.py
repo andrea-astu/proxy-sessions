@@ -1,6 +1,7 @@
 import websockets
 import asyncio
 import proxy_with_middle as proxy # check defs. don't clash
+import json
  
 # Creating WebSocket server
 async def ws_server(websocket):
@@ -74,19 +75,19 @@ async def ws_server(websocket):
                     print(f'in protocol A got action: {action}') # DEBUG
 
                     if action == "Add":
-                        a = int(await websocket.recv()) # receive int
-                        b = int(await websocket.recv()) # receive int
+                        a = json.loads(await websocket.recv()) # receive int
+                        b = json.loads(await websocket.recv()) # receive int
                         print(f'in add got this from client: {a}, {b}') # DEBUG
                         c = a + b # perform calculation
-                        await websocket.send(str(c)) # say it's payload or not??
+                        await websocket.send(json.dumps(c)) # say it's payload or not??
                         print(f'sent answer {c}') # DEBUG
                         protocol == "A"
                     
                     if action == "Neg":
-                        a = await websocket.recv() # receive int
+                        a = json.loads(await websocket.recv()) # receive int
                         print(f'in neg got this from client: {a}') # DEBUG
-                        b = -int(a) # perform calculation
-                        await websocket.send(str(b))
+                        b = -a # perform calculation
+                        await websocket.send(json.dumps(b))
                         print(f'sent answer {b}') # DEBUG
                         protocol == "A"
 
@@ -102,14 +103,14 @@ async def ws_server(websocket):
                     print(f'in b got action {action}') # DEBUG
 
                     if action == "Greeting":
-                        name = await websocket.recv() # receive name
+                        name = json.loads(await websocket.recv()) # receive name
                         nickname = name[:2] # first three letters of name
-                        await websocket.send(nickname)
+                        await websocket.send(json.dumps(nickname))
                         protocol == "B"
                     
 
                     if action == "Goodbye":
-                        await websocket.send("May we meet again")
+                        await websocket.send(json.dumps("May we meet again"))
                         protocol == "B"
 
                     if action == "Quit":

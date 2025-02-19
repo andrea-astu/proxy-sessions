@@ -4,6 +4,7 @@ import re # to parse Connection addresses
 #websockets imports
 import websockets
 import asyncio
+import json
 # import logging # used to debug in past codes
  
 
@@ -38,6 +39,7 @@ class Array(Type):
         super().__init__("array")
         self.payload = payload
 
+# ------------------- define session types -----------------------------------------------
 
 # define dir and label
 class Dir:
@@ -66,7 +68,7 @@ class Session:
         self.kind = kind
 
 class Single(Session):
-    def __init__(self, dir: Dir, payload: Payload, cont: Session):
+    def __init__(self, dir: Dir, payload, cont: Session):
         super().__init__("single")
         self.dir = dir
         self.payload = payload
@@ -119,6 +121,15 @@ class End(Session):
         super().__init__("end")
 
 # ----------------------------------------------------------------------------------------------------------------
+# JSON Schema 
+
+def checkPayload(payload_given:str):
+    int
+    {type: int}
+
+
+
+# ----------------------------------------------------------------------------------------------------------------
 
 # global dict to keep info about protocols and sessions
 class GlobalDict:
@@ -166,7 +177,11 @@ async def handle_session(ses_server, ses_client, command, server_socket, client_
         if ses_server_actual.kind == "single" and ses_client_actual.kind == "single":
             if ses_server_actual.dir == "recv" and ses_client_actual.dir == "send": # server has to recv; therefore first get thing from client and then send to server
                 payload_to_transport = await client_socket.recv()
-                print(f'payload from client: {payload_to_transport}') # DEBUG
+                print(f'payload from client: {repr(payload_to_transport)}') # DEBUG
+                # unpack and pack, see if it works?
+                # payload_to_transport = json.loads(payload_to_transport)
+                # print(f"extracted string is {payload_to_transport}") # DEBUG
+                # payload_to_transport = json.dumps(payload_to_transport)
                 await server_socket.send(payload_to_transport)
                 print("Message sent from client to server")
                 # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
