@@ -9,9 +9,9 @@ async def ws_client():
     url = "ws://127.0.0.1:7891"
 
     # define protocol sessions
-    protocol_a_str = """Session: Def, Name: A, Cont: Session: Choice, Dir: recv, Alternatives: [{Label: Add, Session: Single, Dir: send, Payload: int, Cont: Session: Single, Dir: send, Payload: int, Cont: Session: Single, Dir: recv, Payload: int, Cont: Session: Ref, Name: A}, {Label: Neg, Session: Single, Dir: send, Payload: int, Cont: Session: Single, Dir: recv, Payload: int, Cont: Session: Ref, Name: A}, {Label: Quit, Session: End}]"""
+    protocol_a_str = """Session: Def, Name: A, Cont: Session: Choice, Dir: recv, Alternatives: [{Label: Add, Session: Single, Dir: send, Payload: number, Cont: Session: Single, Dir: send, Payload: number, Cont: Session: Single, Dir: recv, Payload: number, Cont: Session: Ref, Name: A}, {Label: Neg, Session: Single, Dir: send, Payload: number, Cont: Session: Single, Dir: recv, Payload: number, Cont: Session: Ref, Name: A}, {Label: Quit, Session: End}]"""
             
-    protocol_b_str = """Session: Def, Name: B, Cont: Session: Choice, Dir: recv, Alternatives: [{Label: Greeting, Session: Single, Dir: send, Payload: str, Cont: Session: Single, Dir: recv, Payload: str, Cont: Session: Ref, Name: B}, {Label: Goodbye, Session: Single, Dir: recv, Payload: int, Cont: Session: Ref, Name: B}, {Label: Quit, Session: End}]"""
+    protocol_b_str = """Session: Def, Name: B, Cont: Session: Choice, Dir: recv, Alternatives: [{Label: Greeting, Session: Single, Dir: send, Payload: string, Cont: Session: Single, Dir: recv, Payload: string, Cont: Session: Ref, Name: B}, {Label: Goodbye, Session: Single, Dir: recv, Payload: number, Cont: Session: Ref, Name: B}, {Label: Quit, Session: End}]"""
 
 
     # Connect to the server

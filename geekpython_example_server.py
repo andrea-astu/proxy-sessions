@@ -19,13 +19,13 @@ async def ws_server(websocket):
             # dict for alternatives in A
             # does it work to define Labels this way???
             # Ref A indicates should be ready to carry out more Sessions in protocol
-            # HOW to define TYPE of payload???? Like here it should be "receive Int"!! Maybe JSON Schema??
-            add_session = proxy.Single(dir="recv", payload=proxy.Payload("int"),
-                                   cont=(proxy.Single(dir="recv", payload=proxy.Payload("int"),
-                                   cont=(proxy.Single(dir="send", payload=proxy.Payload("int"),
+            # HOW to define TYPE of payload???? Like here it should be "receive number"!! Maybe JSON Schema??
+            add_session = proxy.Single(dir="recv", payload=proxy.Payload("number"),
+                                   cont=(proxy.Single(dir="recv", payload=proxy.Payload("number"),
+                                   cont=(proxy.Single(dir="send", payload=proxy.Payload("number"),
                                    cont=(proxy.Ref("A")))))))
-            neg_session = proxy.Single(dir="recv", payload=proxy.Payload("int"),
-                                   cont=(proxy.Single(dir="send", payload=proxy.Payload("int"),
+            neg_session = proxy.Single(dir="recv", payload=proxy.Payload("number"),
+                                   cont=(proxy.Single(dir="send", payload=proxy.Payload("number"),
                                    cont=(proxy.Ref("A")))))
             a_alt = {proxy.Label("Add"): add_session,
                      proxy.Label("Neg"): neg_session,
@@ -35,10 +35,10 @@ async def ws_server(websocket):
             protocol_a = proxy.Def(name="A", cont=proxy.Choice(dir="send", alternatives=a_alt))
 
             # other protocol to try switching in between. Protocol to give/return name
-            greeting_session = proxy.Single(dir="recv", payload=proxy.Payload("str"),
-                                   cont=(proxy.Single(dir="send", payload=proxy.Payload("str"),
+            greeting_session = proxy.Single(dir="recv", payload=proxy.Payload("string"),
+                                   cont=(proxy.Single(dir="send", payload=proxy.Payload("string"),
                                    cont=(proxy.Ref("B")))))
-            goodbye_session = proxy.Single(dir="send", payload=proxy.Payload("str"),
+            goodbye_session = proxy.Single(dir="send", payload=proxy.Payload("string"),
                                    cont=(proxy.Ref("B")))
             b_alt = {proxy.Label("Greeting"): greeting_session,
                      proxy.Label("Goodbye"): goodbye_session,
@@ -49,9 +49,9 @@ async def ws_server(websocket):
 
             # as a string!!!
             # ?: payload "" or not?
-            protocol_a_str = """Session: Def, Name: A, Cont: Session: Choice, Dir: send, Alternatives: [{Label: Add, Session: Single, Dir: recv, Payload: int, Cont: Session: Single, Dir: recv, Payload: int, Cont: Session: Single, Dir: send, Payload: int, Cont: Session: Ref, Name: A}, {Label: Neg, Session: Single, Dir: recv, Payload: int, Cont: Session: Single, Dir: send, Payload: int, Cont: Session: Ref, Name: A}, {Label: Quit, Session: End}]"""
+            protocol_a_str = """Session: Def, Name: A, Cont: Session: Choice, Dir: send, Alternatives: [{Label: Add, Session: Single, Dir: recv, Payload: number, Cont: Session: Single, Dir: recv, Payload: number, Cont: Session: Single, Dir: send, Payload: number, Cont: Session: Ref, Name: A}, {Label: Neg, Session: Single, Dir: recv, Payload: number, Cont: Session: Single, Dir: send, Payload: number, Cont: Session: Ref, Name: A}, {Label: Quit, Session: End}]"""
             
-            protocol_b_str = """Session: Def, Name: B, Cont: Session: Choice, Dir: send, Alternatives: [{Label: Greeting, Session: Single, Dir: recv, Payload: str, Cont: Session: Single, Dir: send, Payload: str, Cont: Session: Ref, Name: B}, {Label: Goodbye, Session: Single, Dir: send, Payload: int, Cont: Session: Ref, Name: B}, {Label: Quit, Session: End}]"""
+            protocol_b_str = """Session: Def, Name: B, Cont: Session: Choice, Dir: send, Alternatives: [{Label: Greeting, Session: Single, Dir: recv, Payload: string, Cont: Session: Single, Dir: send, Payload: string, Cont: Session: Ref, Name: B}, {Label: Goodbye, Session: Single, Dir: send, Payload: number, Cont: Session: Ref, Name: B}, {Label: Quit, Session: End}]"""
 
 
 
@@ -75,8 +75,8 @@ async def ws_server(websocket):
                     print(f'in protocol A got action: {action}') # DEBUG
 
                     if action == "Add":
-                        a = json.loads(await websocket.recv()) # receive int
-                        b = json.loads(await websocket.recv()) # receive int
+                        a = json.loads(await websocket.recv()) # receive number
+                        b = json.loads(await websocket.recv()) # receive number
                         print(f'in add got this from client: {a}, {b}') # DEBUG
                         c = a + b # perform calculation
                         await websocket.send(json.dumps(c)) # say it's payload or not??
@@ -84,7 +84,7 @@ async def ws_server(websocket):
                         protocol == "A"
                     
                     if action == "Neg":
-                        a = json.loads(await websocket.recv()) # receive int
+                        a = json.loads(await websocket.recv()) # receive number
                         print(f'in neg got this from client: {a}') # DEBUG
                         b = -a # perform calculation
                         await websocket.send(json.dumps(b))

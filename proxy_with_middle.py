@@ -4,7 +4,7 @@ import re # to parse Connection addresses
 #websockets imports
 import websockets
 import asyncio
-import json
+import schema_validation
 # import logging # used to debug in past codes
  
 
@@ -121,15 +121,6 @@ class End(Session):
         super().__init__("end")
 
 # ----------------------------------------------------------------------------------------------------------------
-# JSON Schema 
-
-def checkPayload(payload_given:str):
-    int
-    {type: int}
-
-
-
-# ----------------------------------------------------------------------------------------------------------------
 
 # global dict to keep info about protocols and sessions
 class GlobalDict:
@@ -178,10 +169,8 @@ async def handle_session(ses_server, ses_client, command, server_socket, client_
             if ses_server_actual.dir == "recv" and ses_client_actual.dir == "send": # server has to recv; therefore first get thing from client and then send to server
                 payload_to_transport = await client_socket.recv()
                 print(f'payload from client: {repr(payload_to_transport)}') # DEBUG
-                # unpack and pack, see if it works?
-                # payload_to_transport = json.loads(payload_to_transport)
-                # print(f"extracted string is {payload_to_transport}") # DEBUG
-                # payload_to_transport = json.dumps(payload_to_transport)
+                print("confirm type of payload")# DEBUG
+                schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload)
                 await server_socket.send(payload_to_transport)
                 print("Message sent from client to server")
                 # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
@@ -189,12 +178,13 @@ async def handle_session(ses_server, ses_client, command, server_socket, client_
             elif ses_server_actual.dir == "send" and ses_client_actual.dir == "recv":
                 payload_to_transport = await server_socket.recv()
                 await client_socket.send(payload_to_transport)
+                schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload)
                 print(f'payload from server: {payload_to_transport}') # DEBUG
                 print("Message sent from server to client")
                 # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
                 # return ref_return_server, ref_return_client
             else:
-                print ("The direction given to the Single session is not recognized")
+                print ("The direction given to the Single session is not recognized or server and client do not ahve opposing directions")
                 return End(), End()
             actual_sessions = (ses_server_actual.cont, ses_client_actual.cont) # in any case in single continue with cont
         elif ses_server_actual.kind == "choice" and ses_client_actual.kind == "choice":
@@ -267,12 +257,9 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
                     await server_ws.send(protocol_name) # always have to tell server which is protocol!
                     command = await websocket_client.recv() # (action/operation) name
                     print(f'command: {command}') # DEBUG
-                    print("failed here? 5") # DEBUG
                     await server_ws.send(command)
                     print(f"actual server ses before: {actual_ses_server}")
-                    print("failed here? 6") # DEBUG
                     actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, command, server_ws, websocket_client) # carries out exchange dictated in that protocol's command
-                    print("failed here? 7") # DEBUG
                     # print(f'actual ses kind: {actual_ses.kind}') # DEBUG
                     print(f'actual ses server : {actual_ses_server}') # DEBUG
                     # if actual_ses.kind == "ref":
