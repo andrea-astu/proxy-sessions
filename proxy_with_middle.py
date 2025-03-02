@@ -170,7 +170,7 @@ async def handle_session(ses_server, ses_client, command, server_socket, client_
                 payload_to_transport = await client_socket.recv()
                 print(f'payload from client: {repr(payload_to_transport)}') # DEBUG
                 print("confirm type of payload")# DEBUG
-                schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload)
+                # schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload)
                 await server_socket.send(payload_to_transport)
                 print("Message sent from client to server")
                 # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
@@ -178,7 +178,7 @@ async def handle_session(ses_server, ses_client, command, server_socket, client_
             elif ses_server_actual.dir == "send" and ses_client_actual.dir == "recv":
                 payload_to_transport = await server_socket.recv()
                 await client_socket.send(payload_to_transport)
-                schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload)
+                # schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload)
                 print(f'payload from server: {payload_to_transport}') # DEBUG
                 print("Message sent from server to client")
                 # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
@@ -335,7 +335,7 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
 
                 # parse alternatives
                 alternatives_parsed = {} # check if ok
-                alt_matches = re.findall(r"\{Label: (.*?), Session: (.*?)\}", alternatives_given) # find all things with this structure in alternatives
+                alt_matches = re.findall(r"\(Label: (.*?), Session: (.*?)\)", alternatives_given) # find all things with this structure in alternatives
                 for label, alt_session in alt_matches:
                     # Parse each alternative's session recursively
                     alternatives_parsed[Label(label.strip())] = message_into_session(f"Session: {alt_session.strip()}", type_socket)

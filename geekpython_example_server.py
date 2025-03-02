@@ -49,9 +49,9 @@ async def ws_server(websocket):
 
             # as a string!!!
             # ?: payload "" or not?
-            protocol_a_str = """Session: Def, Name: A, Cont: Session: Choice, Dir: send, Alternatives: [{Label: Add, Session: Single, Dir: recv, Payload: number, Cont: Session: Single, Dir: recv, Payload: number, Cont: Session: Single, Dir: send, Payload: number, Cont: Session: Ref, Name: A}, {Label: Neg, Session: Single, Dir: recv, Payload: number, Cont: Session: Single, Dir: send, Payload: number, Cont: Session: Ref, Name: A}, {Label: Quit, Session: End}]"""
+            protocol_a_str = 'Session: Def, Name: A, Cont: Session: Choice, Dir: send, Alternatives: [(Label: Add, Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Neg, Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Quit, Session: End)]'
             
-            protocol_b_str = """Session: Def, Name: B, Cont: Session: Choice, Dir: send, Alternatives: [{Label: Greeting, Session: Single, Dir: recv, Payload: string, Cont: Session: Single, Dir: send, Payload: string, Cont: Session: Ref, Name: B}, {Label: Goodbye, Session: Single, Dir: send, Payload: number, Cont: Session: Ref, Name: B}, {Label: Quit, Session: End}]"""
+            protocol_b_str = 'Session: Def, Name: B, Cont: Session: Choice, Dir: send, Alternatives: [(Label: Greeting, Session: Single, Dir: recv, Payload: { type: "string" }, Cont: Session: Single, Dir: send, Payload: { type: "string" }, Cont: Session: Ref, Name: B), (Label: Goodbye, Session: Single, Dir: send, Payload: { type: "string" }, Cont: Session: Ref, Name: B), (Label: Quit, Session: End)]'
 
 
 
@@ -110,6 +110,8 @@ async def ws_server(websocket):
                     
 
                     if action == "Goodbye":
+                        print("carrying out goodbye") # DEBUG
+                        # print(f"sending {json.dumps("May we meet again")}") # DEBUG
                         await websocket.send(json.dumps("May we meet again"))
                         protocol == "B"
 
@@ -121,34 +123,6 @@ async def ws_server(websocket):
                 else:
                     print(f'for some reason protocol neither A nor B') # DEBUG
                     await websocket.send("Session: End") # send End session or just message something went wrong??
-
-
-
-            """""
-            # Receiving values from client
-            await websocket.send(f'Session: Single, Dir: recv, Payload: "", Cont: End') # but what abount Cont here?... Or Choice??
-            name = await websocket.recv() # but will receive session
-            print("received name!")
-            await websocket.send(f'Session: Single, Dir: recv, Payload: "", Cont: End')
-            age = await websocket.recv() # same: session
- 
-            # Prompt message when any of the field is missing
-            if name == "" or age == "":
-                print("Error Receiving Value from Client.")
-                break
- 
-            # Printing details received by client
-            print("Details Received from Client:")
-            print(f"Name: {name}")
-            print(f"Age: {age}")
- 
-            # Sending a response back to the client
-            # Choice HERE?
-            if int(age) < 18:
-                await websocket.send(f'Session: Single, Dir:send, Payload: "Sorry! {name}, You cannot join the club.", Cont: End')
-            else:
-                await websocket.send(f'Session: Single, Dir:send, Payload: "Welcome aboard, {name}.", Cont: End')
-            """
  
     except websockets.ConnectionClosedError:
         print("Internal Server Error.")
