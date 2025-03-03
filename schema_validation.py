@@ -39,6 +39,7 @@ interesting_schema = {
 }
 
 
+
 # version one
 
 # payload_sender is payload that was sent (actual object)
@@ -47,7 +48,7 @@ interesting_schema = {
 # any is considered any of the other types
 def checkPayload(payload_sender, payload_in_ses, expected_payload) -> str:
     if payload_in_ses != expected_payload:
-        print("Error! The session payload types are different!")
+        return("Error! The session payload types are different!")
     else:
         data = json.loads(payload_sender) # Convert JSON string to Python data
         if payload_in_ses == '{ type: "number" }' or payload_in_ses == '{ type: "any" }': 
@@ -58,37 +59,50 @@ def checkPayload(payload_sender, payload_in_ses, expected_payload) -> str:
             return try_schema(data, schema_null, payload_in_ses)
         elif payload_in_ses == '{ type: "bool" }' or payload_in_ses == '{ type: "any" }':
             return try_schema(data, schema_bool, payload_in_ses)
+        # array
         elif ('{ type: "array"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
             check_structure = try_schema(data, schema_array, payload_in_ses) # check that it IS an array
             # if try succedes
             if (not ("Error!" in check_structure)): # check all elements in array are same type
                 # structure: { type: "array", payload: Type } where Type is what we want ->
-                supposed_type = payload_in_ses[26:-2] # supposed to read payload type, but idk
+                supposed_type = payload_in_ses[28:-2] # supposed to read payload type, but idk
                 for a in data: # recursively check type and see if they are accepted and are the same for all
                     check_type = checkPayload(json.dumps(a), supposed_type, supposed_type)
                     if "Error!" in check_type:
-                        return ("Error! Not all elements in the array have the same type or the expected type")
+                        return ("Error! Not all elements in the array have the same or expected type")
                 return('Received valid payload type: { type: "array" }')
+        # tuple
+        # { type: "tuple", payload: Array<Type> } ; so check payload list
+        elif ('{ type: "tuple"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
+            check_structure = try_schema(data, schema_array, payload_in_ses) # check that it IS an array
+            # if try succedes
+            if (not ("Error!" in check_structure)): # check all elements in array are same type
+                supposed_types = payload_in_ses[29:-3].split(", ") # gives a list of payload types
+                if (len(supposed_types) != len(data)): return "Error! The list is not of the given fixed length"
+                for a in range (0, (len(data) - 1)): # recursively check type and see if they are accepted and are the same for all # including a?
+                  check_type = checkPayload(json.dumps(data[a]), supposed_types[a], supposed_types[a])
+                  if "Error!" in check_type:
+                      return (f"Error! Tuple element {a} does not correspond to the given type")
+                return('Received valid payload type: { type: "tuple" }')
+        # union
+        # { type: "union", components: Array<Type> } |
         elif ('{ type: "union"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
+          check_structure = try_schema(data, schema_array, payload_in_ses) # check that it IS an array
+          # if try succedes
+          if (not ("Error!" in check_structure)): # check all elements in array are same type
+              supposed_types = payload_in_ses[29:-3].split(", ") # gives a list of payload types
+              for a in range(len(data)): # recursively check type and see if they are accepted and are the same for all # including a?
+                for b in range(len(supposed_types)):
+                  check_type = checkPayload(json.dumps(data[a]), supposed_types[b], supposed_types[b])
+                  if ("Error!" in check_type) and (b == len(supposed_types) -1): # if already looked through all possible types for that element
+                    return (f"Error! Union element {data[a]} is not of a valid type")
+                  elif (not "Error!" in check_type):
+                    break
+              return ('Received valid payload type: { type: "union" }')
 
         else:
             return("Error! payload is not of a recognized type")
-        """
-        # tuple and union I'm still thinking about
-        # for tuple we don't have to check all elements are same but idk how to check for fixed length
-        elif payload_in_ses == "tuple" or payload_in_ses == "any":
-            try_schema(data, schema_array)
-        # union means it could be any of the types mentioned in components
-        elif payload_in_ses.contains("union") or payload_in_ses == "any":
-            components = payload_in_ses[7:-1].split(", ") # still to do: check union is written correctly in session
-            print(f"components list elements: {components}") # DEBUG
-            for a in components:
-                try_type = try_schema(data, a)
-                if not try_type.contains("Error!"):
-                    return try_type
-            # this only happens if none match
-            return ("Error! No expected types match given type in a union")
-        """
+
 
 
 def try_schema(data, schema_to_check, expected) -> str:
@@ -96,7 +110,7 @@ def try_schema(data, schema_to_check, expected) -> str:
         jsonschema.validate(instance=data, schema=schema_to_check)  # Validate against schema
         return(f"Received valid payload type: {expected}")
     except jsonschema.ValidationError:
-        return(f"Error! Invalid data type! Expected type {expected}")
+        return(f"Error! Invalid data type! Expected type {expected} for {data}")
     except json.JSONDecodeError:
         return("Error! Invalid JSON format!")
 
@@ -190,6 +204,7 @@ if __name__ == "__main__":
     example_number = json.dumps(42)
     example_array1 = json.dumps([1, 2, 3]) # should be ok
     example_array2 = json.dumps(["a", 5, True]) # should give error
+    example_tuple = json.dumps([1, 2, "and", False])
     # print(try_schema(json.loads(example_string), basic_types_joined, "string"))
     # example_array = json.dumps([True, "a", False])
     # print(try_schema(json.loads(example_array), interesting_schema, "array"))
@@ -197,5 +212,15 @@ if __name__ == "__main__":
     print(checkPayload(example_bool, '{ type: "bool" }', '{ type: "bool" }'))
     print(checkPayload(example_null, '{ type: "null" }', '{ type: "null" }'))
     print(checkPayload(example_number, '{ type: "number" }', '{ type: "number" }'))
-    print(checkPayload(example_array1, '{ type: "array", payload: { type: "number" } }', '{ type: "array", payload: { type: "number" } }'))
-    print(checkPayload(example_array2, '{ type: "array", payload: { type: "string" } }', '{ type: "array", payload: { type: "string" } }'))
+    print(checkPayload(example_array1, '{ type: "array" }, payload: { type: "number" } }', '{ type: "array" }, payload: { type: "number" } }'))
+    print(checkPayload(example_array2, '{ type: "array" }, payload: { type: "string" } }', '{ type: "array" }, payload: { type: "string" } }'))
+    print(checkPayload(example_tuple, '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }',
+                                      '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }')) # should work
+    print(checkPayload(example_tuple, '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }',
+                                      '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }')) # should fail because of length
+    print(checkPayload(example_tuple, '{ type: "tuple" }, payload: [{ type: "number" }, { type: "bool" }, { type: "string" }, { type: "bool" }] }',
+                                      '{ type: "tuple" }, payload: [{ type: "number" }, { type: "bool" }, { type: "string" }, { type: "bool" }] }'))# sould fail ebcause of type
+    print(checkPayload(example_tuple, '{ type: "union" }, payload: [{ type: "number" }, { type: "string" }] }',
+                                      '{ type: "union" }, payload: [{ type: "number" }, { type: "string" }] }')) # should fail because of type missing in components
+    print(checkPayload(example_tuple, '{ type: "union" }, payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }',
+                                      '{ type: "union" }, payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }')) # sould succeed

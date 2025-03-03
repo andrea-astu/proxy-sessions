@@ -170,7 +170,7 @@ async def handle_session(ses_server, ses_client, command, server_socket, client_
                 payload_to_transport = await client_socket.recv()
                 print(f'payload from client: {repr(payload_to_transport)}') # DEBUG
                 print("confirm type of payload")# DEBUG
-                # schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload)
+                print(schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload))
                 await server_socket.send(payload_to_transport)
                 print("Message sent from client to server")
                 # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
@@ -178,7 +178,7 @@ async def handle_session(ses_server, ses_client, command, server_socket, client_
             elif ses_server_actual.dir == "send" and ses_client_actual.dir == "recv":
                 payload_to_transport = await server_socket.recv()
                 await client_socket.send(payload_to_transport)
-                # schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload)
+                print(schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload))
                 print(f'payload from server: {payload_to_transport}') # DEBUG
                 print("Message sent from server to client")
                 # ref_return_server, ref_return_client = await handle_session(ses_server.cont, ses_client.cont, command, server_socket, client_socket) # continue to next session
