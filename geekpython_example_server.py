@@ -1,12 +1,16 @@
 import websockets
 import asyncio
-import proxy_with_middle as proxy # check defs. don't clash
 import json
- 
-# Creating WebSocket server
+
+
 async def ws_server(websocket):
-    print("WebSocket: Server Started.")
- 
+    """
+    Main function of server where protocols are defined and information is sent back and forth.
+
+    Args:
+        websocket: Server's websocket (will receive and send information) provided by websockets.serve function.
+    """
+    print("Server started...")
     try:
         while True:
 
@@ -48,8 +52,6 @@ async def ws_server(websocket):
                         print(f'Sent payload: {b}')
                         protocol == "A"
 
-                    # if action == "Quit":
-                        # print(f'currently in A quit')
                 
                 elif protocol == "B":
                     # choose option in protocol
@@ -58,7 +60,7 @@ async def ws_server(websocket):
 
                     if action == "Greeting":
                         name = json.loads(await websocket.recv()) # receive name
-                        nickname = name[:2] # first three letters of name
+                        nickname = name[:3] # first three letters of name
                         await websocket.send(json.dumps(nickname)) # send changed name
                         protocol == "B"
                     
@@ -67,8 +69,6 @@ async def ws_server(websocket):
                         await websocket.send(json.dumps("May we meet again"))
                         protocol == "B"
 
-                    # if action == "Quit":
-                        # print(f'in quit B') # DEBUG
 
                 else:
                     # code as raising an exception instead
@@ -80,8 +80,13 @@ async def ws_server(websocket):
  
  
 async def main():
-    async with websockets.serve(ws_server, "localhost", 7890):
-        await asyncio.Future()  # run forever*
+    """
+    Creates a WebSocket server that listens on localhost:7890.
+    Whenever a client connects to the server, websockets.serve automatically calls ws_server, 
+    passing in a new websocket object (which represents the connection with that client).
+    """
+    async with websockets.serve(ws_server, "localhost", 7890): # the port can be changed depending on preference
+        await asyncio.Future()  # run forever because servers must always be active
  
 if __name__ == "__main__":
     # start code
