@@ -4,9 +4,9 @@ import json # to send and receive payloads
 import time # to keep console opened for a bit after code is finished
  
 async def ws_client():
-    """
+    '''
     Handles connection and sends and receives payloads according to intrecation with user.
-    """
+    '''
     print("Connecting client...")
     url = "ws://127.0.0.1:7891" # 7891 is proxy port
 

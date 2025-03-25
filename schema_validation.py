@@ -1,7 +1,5 @@
 import json
 import jsonschema
-# combines schemas and manual checking to see if it is payload type
-
 
 # ---------------- define schemas -------------------------------------------------------------------
 # num schema
@@ -27,26 +25,21 @@ schema_array = {
 "type": "array"
 }
 
-# it works with [True, ]
-interesting_schema = {
-  "type": "array",
-  "prefixItems": [
-    { "type": "boolean" },
-    { "type": "string" },
-    { "type": "boolean" }
-  ],
-  "items": { "type": "integer" }
-}
+# --- functions for checking -----------------------------------------------------------------------------------
 
-
-
-# version one
-
-# payload_sender is payload that was sent (actual object)
-# payload_in_ses is the payload type the sender is supposed to send according to session
-# expected_payload is the payload type the receiver is expecting according to session
 # any is considered any of the other types
-def checkPayload(payload_sender, payload_in_ses, expected_payload) -> str:
+def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> str:
+    '''
+    Compares the actual payload against the expected one.
+
+    Args:
+        payload_sender: payload that was sent (actual object)
+        payload_in_ses (str): the payload type the sender is supposed to send according to the session
+        expected_payload (str): is the payload type the receiver is expecting according to session
+
+    Returns:
+        A string if it worked and an exception otherwise*
+    '''
     if payload_in_ses != expected_payload:
         return("Error! The session payload types are different!")
     else:
@@ -113,114 +106,3 @@ def try_schema(data, schema_to_check, expected) -> str:
         return(f"Error! Invalid data type! Expected type {expected} for {data}")
     except json.JSONDecodeError:
         return("Error! Invalid JSON format!")
-
-    
-
-# specific syntax
-# type "union" can be specified in session as for example "Payload: union [number, string]""
-# type "record "
-
-
-# version 2
-
-general_schema = {
-  # "$schema": "http://json-schema.org/draft-07/schema#",
-  # "title": "Type Validation Schema",
-  "oneOf": [
-    { "type": "any", "properties": { "type": { "const": "any" } }, "required": ["type"] },
-    { "type": "number", "properties": { "type": { "const": "number" } }, "required": ["type"] },
-    { "type": "string", "properties": { "type": { "const": "string" } }, "required": ["type"] },
-    { "type": "bool", "properties": { "type": { "const": "bool" } }, "required": ["type"] },
-    { "type": "null", "properties": { "type": { "const": "null" } }, "required": ["type"] },
-    { 
-      "type": "object",
-      "properties": {
-        "type": { "const": "union" },
-        "components": { 
-          "type": "array",
-          "items": { "$ref": "#" },
-          "minItems": 1
-        }
-      },
-      "required": ["type", "components"]
-    },
-    { 
-      "type": "object",
-      "properties": {
-        "type": { "const": "record" },
-        "payload": { 
-          "type": "object",
-          "additionalProperties": { "$ref": "#" }
-        },
-        "name": { "type": "string" }
-      },
-      "required": ["type", "payload"]
-    },
-    { 
-      "type": "object",
-      "properties": {
-        "type": { "const": "ref" },
-        "name": { "type": "string" }
-      },
-      "required": ["type", "name"]
-    },
-    { 
-      "type": "object",
-      "properties": {
-        "type": { "const": "tuple" },
-        "payload": { 
-          "type": "array",
-          "items": { "$ref": "#" },
-          "minItems": 1
-        }
-      },
-      "required": ["type", "payload"]
-    },
-    { 
-      "type": "object",
-      "properties": {
-        "type": { "const": "array" },
-        "payload": { "$ref": "#" }
-      },
-      "required": ["type", "payload"]
-    }
-  ]
-}
-
-basic_types_joined = {
-    "oneOf": [
-    { "type": "string" },
-    { "type": "boolean" },
-    { "type": "null" },
-    { "type": "number" }
-    ]
-}
-    
-
-if __name__ == "__main__":
-    example_string = json.dumps("hello")
-    example_bool = json.dumps(True)
-    example_null = json.dumps(None) # None is supposed to be null but we'll see
-    example_number = json.dumps(42)
-    example_array1 = json.dumps([1, 2, 3]) # should be ok
-    example_array2 = json.dumps(["a", 5, True]) # should give error
-    example_tuple = json.dumps([1, 2, "and", False])
-    # print(try_schema(json.loads(example_string), basic_types_joined, "string"))
-    # example_array = json.dumps([True, "a", False])
-    # print(try_schema(json.loads(example_array), interesting_schema, "array"))
-    print(checkPayload(example_string, '{ type: "string" }', '{ type: "string" }'))
-    print(checkPayload(example_bool, '{ type: "bool" }', '{ type: "bool" }'))
-    print(checkPayload(example_null, '{ type: "null" }', '{ type: "null" }'))
-    print(checkPayload(example_number, '{ type: "number" }', '{ type: "number" }'))
-    print(checkPayload(example_array1, '{ type: "array" }, payload: { type: "number" } }', '{ type: "array" }, payload: { type: "number" } }'))
-    print(checkPayload(example_array2, '{ type: "array" }, payload: { type: "string" } }', '{ type: "array" }, payload: { type: "string" } }'))
-    print(checkPayload(example_tuple, '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }',
-                                      '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }')) # should work
-    print(checkPayload(example_tuple, '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }',
-                                      '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }')) # should fail because of length
-    print(checkPayload(example_tuple, '{ type: "tuple" }, payload: [{ type: "number" }, { type: "bool" }, { type: "string" }, { type: "bool" }] }',
-                                      '{ type: "tuple" }, payload: [{ type: "number" }, { type: "bool" }, { type: "string" }, { type: "bool" }] }'))# sould fail ebcause of type
-    print(checkPayload(example_tuple, '{ type: "union" }, payload: [{ type: "number" }, { type: "string" }] }',
-                                      '{ type: "union" }, payload: [{ type: "number" }, { type: "string" }] }')) # should fail because of type missing in components
-    print(checkPayload(example_tuple, '{ type: "union" }, payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }',
-                                      '{ type: "union" }, payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }')) # sould succeed

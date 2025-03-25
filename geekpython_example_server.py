@@ -4,13 +4,13 @@ import json
 
 
 async def ws_server(websocket):
-    """
+    '''
     Main function of server where protocols are defined and information is sent back and forth.
 
     Args:
         websocket: Server's websocket (will receive and send information) provided by websockets.serve function.
-    """
-    print("Server started...")
+    '''
+    print("Conenction succesful...")
     try:
         while True:
 
@@ -80,14 +80,15 @@ async def ws_server(websocket):
  
  
 async def main():
-    """
+    '''
     Creates a WebSocket server that listens on localhost:7890.
     Whenever a client connects to the server, websockets.serve automatically calls ws_server, 
     passing in a new websocket object (which represents the connection with that client).
-    """
+    '''
     async with websockets.serve(ws_server, "localhost", 7890): # the port can be changed depending on preference
         await asyncio.Future()  # run forever because servers must always be active
  
 if __name__ == "__main__":
     # start code
+    print("Server started ...")
     asyncio.run(main())
