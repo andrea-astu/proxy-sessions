@@ -10,7 +10,7 @@ async def ws_server(websocket):
     Args:
         websocket: Server's websocket (will receive and send information) provided by websockets.serve function.
     '''
-    print("Conenction succesful...")
+    print("Connection succesful...")
     try:
         while True:
 
@@ -71,12 +71,17 @@ async def ws_server(websocket):
 
 
                 else:
-                    # code as raising an exception instead
-                    print(f'This protocol is not recognized')
+                    print(f'This protocol is not recognized') # could be handled as an exception
                     await websocket.send("Session: End")
- 
+    # handle ok and unexpected connections
+    except websockets.ConnectionClosedOK:
+        print("Client connection finished...")
     except websockets.ConnectionClosedError:
-        print("Internal Server Error.")
+        print("Error: Client connection lost unexpectedly.")
+    except Exception as e:
+        print(f"Unexpected server error: {e}")
+    finally:
+        await websocket.close()
  
  
 async def main():

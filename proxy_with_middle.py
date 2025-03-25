@@ -128,8 +128,7 @@ class GlobalDict:
             print(f"The session {name.label} does not exist.") # not handled as exception but could be
         else:
             return self.records[name]
-        
-protocol_info = GlobalDict({}) # initialize global dictionary for protocols
+
 
 async def handle_session(ses_server: Session, ses_client: Session, server_socket, client_socket, command:str=""):
     '''
@@ -251,8 +250,14 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
                     print(f'Carrying out {command} action...') # to track what proxy is doing at moment -> could be removed
                     await server_ws.send(command)
                     actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, server_ws, websocket_client, command) # carries out exchange dictated in that protocol's action 
-        except websockets.ConnectionClosedError:
-            print("Error: Connection closed unexpectedly.")
+        # handle ok and unexpected connections
+        except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError):
+            print("Client connection terminated. Closing connections ...")
+        except Exception as e:
+            print(f"Unexpected error in proxy: {e}")
+        finally:
+            await server_ws.close()
+            await websocket_client.close()
 
 #------------ Messages and Session Parsers -------------------------------------------------------------------
 
@@ -347,36 +352,64 @@ async def start_proxy(proxy_address: int, server_address: str):
             proxy_address (int): port where a connection with the proxy can be established
             server_address (str): server address
     '''
-    # in order to pass the proxy_websockets function's parameters with websockets.serve
+    stop_event = asyncio.Event()  # Create event to track when to stop
+    
     async def handler(websocket):
-        await proxy_websockets(server_address, websocket, server_parser, client_parser)
+        try:
+            await proxy_websockets(server_address, websocket, server_parser, client_parser)
+        except Exception as e:
+            print(f"Error in handler: {e}")
+        finally:
+            print("Handler finished ...")
+            stop_event.set()  # Trigger stop when all clients are gone
 
-    async with websockets.serve(handler, "localhost", proxy_address):
-        await asyncio.Future()
+    try:
+        server = await websockets.serve(handler, "localhost", proxy_address)
+        print("Proxy started, waiting for client...")
+        await stop_event.wait()  # Exit when stop_event is set
+        print("Closing connection with server...")
+        server.close()
+        await server.wait_closed()  # Ensure server fully shuts down
+    except Exception as e:
+        print(f"The proxy encountered an error. Please try again!")
 
 if __name__ == "__main__":
     # establish connections
     connection_given = False
-    print("Welcome! To start, please establish a connection.\n") # get info about port connections
+    
+    while True:
+        protocol_info = GlobalDict({}) # initialize global dictionary for protocols
+        print("Welcome! To start, please establish a connection. Write 'quit' if you wish to quit the proxy.")
 
-    while (not connection_given):
+        # user input
         proxy_val = input("Proxy port: ")
         server_val = input("Server port or address: ")
+
+        # quit if user wishes to do so
+        if proxy_val.lower() == "quit" or server_val.lower() == "quit":
+            print("Closing proxy...")
+            asyncio.sleep(3)  # Wait before exit
+            exit()
+
         # check proxy val
-        if proxy_val == "default":
+        if proxy_val.lower() == "default":
             proxy_address = 7891
-        else:
+        elif proxy_val.isnumeric():
             proxy_address = int(proxy_val)
+        else:
+            proxy_address = proxy_val
         # check server val
-        if server_val == "default":
+        if server_val.lower() == "default":
             server_address = "ws://127.0.0.1:7890"
-        elif server_val.isdigit():
+        elif server_val.isnumeric():
             server_address = f"ws://127.0.0.1:{server_val}"
         else:
             server_address = server_val
-        # stop while loop
-        connection_given = True
+        
         print("Connecting...")
 
-    # run proxy
-    asyncio.run(start_proxy(proxy_address, server_address))
+        try:
+            # run proxy
+            asyncio.run(start_proxy(proxy_address, server_address))
+        except Exception as e:
+            print(f"The proxy encountered an error. Please try again!")
