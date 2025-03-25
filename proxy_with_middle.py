@@ -1,4 +1,5 @@
 from typing import Optional, Dict, Callable
+import time
 
 import re # to parse Connection addresses
 
@@ -8,6 +9,9 @@ import asyncio
 
 # to check payload types are ok
 import schema_validation
+
+# to send schema error message to client
+import json
 
 # ------------------- define session types -----------------------------------------------
 
@@ -92,6 +96,13 @@ class End(Session):
     def __init__(self):
         super().__init__("end")
 
+# define schema validation fail error
+class SchemaValidationError(Exception):
+    """Exception raised for errors in schema validation."""
+    def __init__(self, message="Schema validation failed"):
+        self.message = message
+        super().__init__(self.message)
+
 # ---- Client and server communications, session handlers -----------------------------------------------
 
 # global dictionary to keep info about protocols and sessions
@@ -159,23 +170,23 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                 payload_to_transport = await client_socket.recv()
                 # check the payload type being transported matches the payload types defined in the sessions
                 try:
-                    schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload)
+                    print(schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload))
+                    await server_socket.send(payload_to_transport)
+                    print("Message sent from client to server") # to track what proxy is doing at moment -> could be removed
                 except Exception as e:
-                    print(f"Schema validation failed: {e}")
-                    return End(), End()
-                await server_socket.send(payload_to_transport)
-                print("Message sent from client to server") # to track what proxy is doing at moment -> could be removed
+                    raise SchemaValidationError(f"Schema validation from client payload failed: {e}")
             # server sends payload to client
             elif ses_server_actual.dir == "send" and ses_client_actual.dir == "recv":
                 payload_to_transport = await server_socket.recv()
                 # check the payload type being transported matches the payload types defined in the sessions
                 try:
-                    schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload)
+                    print(schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload))
+                    await client_socket.send(payload_to_transport) # transport payload if type is ok
+                    print("Message sent from server to client") # to track what proxy is doing at moment -> could be removed
                 except Exception as e:
-                    print(f"Schema validation failed: {e}")
-                    return End(), End()
-                await client_socket.send(payload_to_transport) # transport payload if type is ok
-                print("Message sent from server to client") # to track what proxy is doing at moment -> could be removed
+                    # if server schema validation fails
+                    await client_socket.send(json.dumps("Error: schema validation failed")) # send error message to cleint
+                    raise SchemaValidationError(f"Schema validation from client payload failed: {e}")
             else:
                 print ("Error: The direction given to the Single session is not recognized or server and client do not have opposing directions.") # not handled as exception but could be
                 return End(), End()
@@ -253,6 +264,8 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
         # handle ok and unexpected connections
         except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError):
             print("Client connection terminated. Closing connections ...")
+        except (SchemaValidationError) as e:
+            print(f"{e}. Restarting ...")
         except Exception as e:
             print(f"Unexpected error in proxy: {e}")
         finally:
