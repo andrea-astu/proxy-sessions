@@ -41,7 +41,7 @@ async def ws_server(websocket):
                         a = json.loads(await websocket.recv()) # receive number
                         b = json.loads(await websocket.recv()) # receive number
                         c = a + b
-                        await websocket.send(json.dumps("c")) # convert payload to json and send to proxy
+                        await websocket.send(json.dumps(c)) # convert payload to json and send to proxy
                         print(f'Sent payload: {c}')
                         protocol == "A"
                     
