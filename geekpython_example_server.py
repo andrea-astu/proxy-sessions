@@ -51,6 +51,9 @@ async def ws_server(websocket):
                         await websocket.send(json.dumps(b)) # convert payload to json and send to proxy
                         print(f'Sent payload: {b}')
                         protocol == "A"
+                    
+                    if action == "Quit":
+                        protocol == "" # to exit protocol A
 
                 
                 elif protocol == "B":
@@ -68,6 +71,9 @@ async def ws_server(websocket):
                     if action == "Goodbye":
                         await websocket.send(json.dumps("May we meet again"))
                         protocol == "B"
+                    
+                    if action == "Quit":
+                        protocol == "" # to exit protocol A
 
 
                 else:
