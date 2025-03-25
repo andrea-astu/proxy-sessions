@@ -46,7 +46,7 @@ async def ws_client():
             # Greeting procedure
             name = input("Hi! What is your name?: ")
             await ws.send("Protocol: B") # choosing protocol
-            await ws.send("Greeting") # choosing "operation" or "action" (session in a protocol)
+            await ws.send("Greeting") # choosing "action" (session in a protocol)
             await ws.send(json.dumps(name)) # sending info
             nickname = confirm_server_payload(json.loads(await ws.recv()))
             print(f'Your assigned nickname is: {nickname}')
@@ -69,7 +69,7 @@ async def ws_client():
             combined_ages = confirm_server_payload(json.loads(await ws.recv()))
             print(f'The ages of you and the other person combined are: {str(combined_ages)}')
 
-            await ws.send("Quit") # quit operations protocol*
+            await ws.send("Quit") # quit protocol a
 
             # Goodbye procedure
             await ws.send("Protocol: B") # choosing protocol

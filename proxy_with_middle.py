@@ -1,5 +1,4 @@
 from typing import Optional, Dict, Callable
-import time
 
 import re # to parse Connection addresses
 
@@ -141,7 +140,8 @@ class GlobalDict:
             return self.records[name]
 
 
-async def handle_session(ses_server: Session, ses_client: Session, server_socket, client_socket, command:str=""):
+async def handle_session(ses_server: Session, ses_client: Session, server_socket, client_socket, 
+                         server_parser: Callable=None, client_parser: Callable=None, command:str=""):
     '''
     Performs actions depending on the given sessions and compares the server and client sessions are actually mirrored.
     Def sessions are not handled here because those define protocols and are instead handled in the define_protocols function.
@@ -151,6 +151,8 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
             ses_client (Session): actual session the client is carrying out
             server_socket: socket to communicate between proxy and server
             client_socket: socket to communicate between proxy and client
+            server_parser (Callable): optional function that changes the server message before sending it to the client
+            client_parser (Callable): optional function that changes the client message before sending it to the server
             command (str): Optional argument that refrences the action to be carried out; used for choice sessions
 
         Returns:
@@ -167,7 +169,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
         if ses_server_actual.kind == "single" and ses_client_actual.kind == "single":
             # client sends payload to server
             if ses_server_actual.dir == "recv" and ses_client_actual.dir == "send":
-                payload_to_transport = await client_socket.recv()
+                payload_to_transport = client_parser(await client_socket.recv())
                 # check the payload type being transported matches the payload types defined in the sessions
                 try:
                     print(schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload))
@@ -177,7 +179,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                     raise SchemaValidationError(f"Schema validation from client payload failed: {e}")
             # server sends payload to client
             elif ses_server_actual.dir == "send" and ses_client_actual.dir == "recv":
-                payload_to_transport = await server_socket.recv()
+                payload_to_transport = server_parser(await server_socket.recv())
                 # check the payload type being transported matches the payload types defined in the sessions
                 try:
                     print(schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload))
@@ -193,7 +195,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
             actual_sessions = (ses_server_actual.cont, ses_client_actual.cont) # after a single session start next session
         # type choice (choose a session inside a protocol)
         elif ses_server_actual.kind == "choice" and ses_client_actual.kind == "choice":
-            # print(f'Looking up action: {command}...') # comment put to debug
+            # print(f'Looking up action: {command}...') # comment out to debug
             actual_sessions = (ses_server_actual.lookup(Label(command)), ses_client_actual.lookup(Label(command)))
         # type ref (always returns a session of type choice)
         elif ses_server_actual.kind == "ref" and ses_client_actual.kind == "ref":
@@ -239,8 +241,8 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
         Args:
             server (str): uri of the server to establish a connection with it
             websocket_client: client websocket to exchange information between it and the proxy
-            server_parser (Callable): optional function that changes the server message before sending it to the client
-            client_parser (Callable): optional function that changes the client message before sending it to the server
+            server_parser (Callable): function that changes the server message before sending it to the client
+            client_parser (Callable): function that changes the client message before sending it to the server
     '''
     async with websockets.connect(server) as server_ws:
         try:
@@ -260,7 +262,8 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
                     command = await websocket_client.recv() # action name
                     print(f'Carrying out {command} action...') # to track what proxy is doing at moment -> could be removed
                     await server_ws.send(command)
-                    actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, server_ws, websocket_client, command) # carries out exchange dictated in that protocol's action 
+                    actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, server_ws, #  carries out exchange dictated in that protocol's action 
+                                                                                websocket_client, server_parser, client_parser, command)
         # handle ok and unexpected connections
         except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError):
             print("Client connection terminated. Closing connections ...")
@@ -348,11 +351,11 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
     else:
         print("Errror: Invalid request") # not handled as exception but could be
 
-# DEFINE OPTIONAL FUNCTIONS HERE!!
-def server_parser(message):
+# DEFINE OPTIONAL FUNCTIONS HERE!
+def server_parser_func(message):
     return message
 
-def client_parser(message):
+def client_parser_func(message):
     return message
 
 # ------------- Initialize Proxy  ----------------------------------------------------------------------
@@ -369,7 +372,7 @@ async def start_proxy(proxy_address: int, server_address: str):
     
     async def handler(websocket):
         try:
-            await proxy_websockets(server_address, websocket, server_parser, client_parser)
+            await proxy_websockets(server_address, websocket, server_parser_func, client_parser_func)
         except Exception as e:
             print(f"Error in handler: {e}")
         finally:
