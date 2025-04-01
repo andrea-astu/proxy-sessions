@@ -52,6 +52,7 @@ def schema_tuple(type_list:list, supposed_length:int):
         "maxItems": supposed_length
     }
 
+# union schema
 def schema_union(type_array:str):
     return {
         "type": "array",
@@ -60,7 +61,25 @@ def schema_union(type_array:str):
         }
     }
 
-# missing: record schema
+# record schema
+def schema_record(field_names: list, type_list: list):
+    return {
+        "type": "object",
+        "properties": {
+            field: {"type": type_list[i]}  # Match field to type by order
+            for i, field in enumerate(field_names)
+        },
+        "required": field_names,  # All fields are required
+        "additionalProperties": False  # No extra fields allowed
+    }
+    """
+    return {
+        "type": "object",
+        "properties": {key: {"type": value} for key, value in field_types.items()},
+        "required": list(field_types.keys()),  # Ensure all fields are required
+        "additionalProperties": False  # Prevent extra fields
+    }"
+    """
 
 # --- functions for checking -----------------------------------------------------------------------------------
 
@@ -113,6 +132,11 @@ def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> 
             actual_name, actual_payload = list(data.items())[0]  # def object is like dict!
 
             return try_schema(data, schema_def(actual_name, payload_type), payload_in_ses)
+        # record
+        elif ('{ type: "record"' in payload_in_ses):
+            field_names = list(data.keys())  # Extracts keys in order
+            types = extract_types(payload_in_ses[27:].replace("[", "").replace("]", "")) # get the types in record according to session description
+            return try_schema(data, schema_record(field_names, types), payload_in_ses) # create union schema dynamically
         else:
             raise TypeError("Error! payload is not of a recognized type")
 
@@ -156,3 +180,10 @@ if __name__ == "__main__":
                                       '{ type: "union", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }')) # should work
     # print(checkPayload(example_tuple, '{ type: "union", payload: [{ type: "string" }, { type: "bool" }] }',
     #                                   '{ type: "union", payload: [{ type: "string" }, { type: "bool" }] }')) # shouldn't work
+    example_record = json.dumps({"age": 25, "name": "Alice", "isAdmin": True})
+
+    print(checkPayload(
+        example_record,
+        '{ type: "record", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }',
+        '{ type: "record", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }'
+    ))
