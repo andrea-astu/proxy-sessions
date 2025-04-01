@@ -1,5 +1,6 @@
 import json
 import jsonschema
+import re # to parse payload types for tuple and union
 
 # ---------------- define schemas -------------------------------------------------------------------
 # num schema
@@ -20,15 +21,9 @@ schema_null = {
 "type": "null"
 }
 
-# array schema
-schema_array = {
-"type": "array"
-}
-
 # dynamically create the following schemas:
 
 # def schema
-# Define a function to create a schema dynamically
 def schema_def(name: str, payload_type):
     return {
         "type": "object",
@@ -38,18 +33,26 @@ def schema_def(name: str, payload_type):
         "required": [name],  # Ensure the name field is required
         "additionalProperties": False  # Prevent extra fields
     }
-    
-    return schema
 
-
-# ref schema
-def schema_ref(name: str):
-    return {"$ref": f"#/$defs/{name}"}
+# array schema
+def schema_array(type_array:str):
+   return {
+        "type": "array",
+        "items": {
+            "prefixItems": {"type": type_array}
+        }
+    }
 
 # tuple schema
-schema_tuple = {
-
-}
+def schema_tuple(type_list:list, supposed_length:int):
+     return {
+        "type": "array",
+        "items": {
+            "prefixItems": [{"type": t} for t in type_list]
+        },
+        "minItems": supposed_length,
+        "maxItems": supposed_length
+    }
 
 # missing: record schema
 
@@ -93,9 +96,10 @@ def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> 
                         raise TypeError("Error! Not all elements in the array have the same or expected type")
                 return('Received valid payload type: { type: "array" }')
         # tuple
-        # { type: "tuple", payload: Array<Type> } ; to check payload list
-        #elif ('{ type: "tuple"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
-            
+        elif ('{ type: "tuple"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
+            types = extract_types(payload_in_ses[26:].replace("[", "").replace("]", "")) # get the types in array according to session description
+            supposed_length = len(types) # how many items there should be in tuple
+            return try_schema(data, schema_tuple(types, supposed_length), payload_in_ses) # create tuple schema dynamically
         # union
         # { type: "union", components: Array<Type> }
         elif ('{ type: "union"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
@@ -118,14 +122,12 @@ def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> 
             payload_type = payload_type.replace('payload: { type: "', '')
             payload_type = payload_type.replace('" } }', '')
 
-            # checking actual_name and passing it on to the dynamic schema makes sure it's a string** 
+            # checking actual_name and passing it on to the dynamic schema makes sure it's a string**
             actual_name, actual_payload = list(data.items())[0]  # def object is like dict!
 
             return try_schema(data, schema_def(actual_name, payload_type), payload_in_ses)
-
         else:
             raise TypeError("Error! payload is not of a recognized type")
-
 
 def try_schema(data, schema_to_check, expected) -> str | Exception:
     try:
@@ -136,22 +138,28 @@ def try_schema(data, schema_to_check, expected) -> str | Exception:
     except json.JSONDecodeError:
         raise json.JSONDecodeError("Invalid JSON format!")
     
-if __name__ == "__main__":
-    example_def = {
-    "name": 7
-    }
+# -- helper functions ---------------------------------------------------------------------------------
+def extract_types(payload_str:str) -> list:
+    '''
+    Parses the string that describes a session of type tuple in order to extract the types of the tuple elements.
 
-    example_def = json.dumps(example_def)
+    Args:
+        tuple_types (str): string of tuple session
 
-    print(checkPayload(example_def, '{ type: "def", name: { type: "string" }, payload: { type: "number" } }',
-                                    '{ type: "def", name: { type: "string" }, payload: { type: "number" } }')) # basic def; usually should be in another structure
+    Returns:
+        A list of JSON types as strings.
+    '''
+    # Extract types inside payload
+    type_pattern = r'\{ type:\s*"(\w+)" \}'
+    types = re.findall(type_pattern, payload_str)
+
+    # Replace "bool" with "boolean"
+    types = ["boolean" if t == "bool" else t for t in types]
+
+    return types
     
-    """
-    # json example of ref
-    example_ref = {
-    "$ref": "#/$defs/Trial"
-    }
-
-    print(checkPayload(example_ref, '{ type: "ref", name: { type: "string" }',
-                                    '{ type: "ref", name: { type: "string" }')) # basic ref; usually should be in another structure
-    """
+if __name__ == "__main__":
+    example_tuple = json.dumps([1, 2, "and", False])
+    
+    print(checkPayload(example_tuple, '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }',
+                                      '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }')) # should work
