@@ -21,6 +21,17 @@ schema_null = {
 "type": "null"
 }
 
+# any schema
+schema_any = {
+    "oneOf": [
+        {"type": "null"},
+        {"type": "string"},
+        {"type": "boolean"},
+        {"type": "number"},
+        {"type": "array"}
+    ]
+}
+
 # dynamically create the following schemas:
 
 # def schema
@@ -42,16 +53,13 @@ def schema_array(type_array:str):
     }
 
 # tuple schema
-def schema_tuple(type_list:list, supposed_length:int):
-     return {
+def schema_tuple(type_list: list, supposed_length: int):
+    return {
         "type": "array",
-        "items": {
-            "prefixItems": [{"type": t} for t in type_list]
-        },
+        "prefixItems": [{"type": t} for t in type_list],  # should be at the top level
         "minItems": supposed_length,
         "maxItems": supposed_length
     }
-
 # union schema
 def schema_union(type_array:str):
     return {
@@ -72,14 +80,6 @@ def schema_record(field_names: list, type_list: list):
         "required": field_names,  # All fields are required
         "additionalProperties": False  # No extra fields allowed
     }
-    """
-    return {
-        "type": "object",
-        "properties": {key: {"type": value} for key, value in field_types.items()},
-        "required": list(field_types.keys()),  # Ensure all fields are required
-        "additionalProperties": False  # Prevent extra fields
-    }"
-    """
 
 # --- functions for checking -----------------------------------------------------------------------------------
 
@@ -100,29 +100,31 @@ def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> 
         raise TypeError("The session payload types are different!")
     else:
         data = json.loads(payload_sender) # Convert JSON string to Python data
-        if payload_in_ses == '{ type: "number" }' or payload_in_ses == '{ type: "any" }': 
+        if payload_in_ses == '{ type: "any" }': 
+            return try_schema(data, schema_any, payload_in_ses)
+        if payload_in_ses == '{ type: "number" }': 
             return try_schema(data, schema_number, payload_in_ses)
-        elif payload_in_ses == '{ type: "string" }' or payload_in_ses == '{ type: "any" }':
+        elif payload_in_ses == '{ type: "string" }':
             return try_schema(data, schema_string, payload_in_ses)
-        elif payload_in_ses == '{ type: "null" }' or payload_in_ses == '{ type: "any" }':
+        elif payload_in_ses == '{ type: "null" }':
             return try_schema(data, schema_null, payload_in_ses)
-        elif payload_in_ses == '{ type: "bool" }' or payload_in_ses == '{ type: "any" }':
+        elif payload_in_ses == '{ type: "bool" }':
             return try_schema(data, schema_bool, payload_in_ses)
         # array
-        elif ('{ type: "array"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
+        elif ('{ type: "array"' in payload_in_ses):
             types = extract_types(payload_in_ses[26:-2]) # get the types in array according to session description
             return try_schema(data, schema_array(types), payload_in_ses) # create array schema dynamically
         # tuple
-        elif ('{ type: "tuple"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
+        elif ('{ type: "tuple"' in payload_in_ses):
             types = extract_types(payload_in_ses[26:].replace("[", "").replace("]", "")) # get the types in array according to session description
             supposed_length = len(types) # how many items there should be in tuple
             return try_schema(data, schema_tuple(types, supposed_length), payload_in_ses) # create tuple schema dynamically
         # union
-        elif ('{ type: "union"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
+        elif ('{ type: "union"' in payload_in_ses):
             types = extract_types(payload_in_ses[26:].replace("[", "").replace("]", "")) # get the types in array according to session description
             return try_schema(data, schema_union(types), payload_in_ses) # create union schema dynamically
         # def
-        elif ('{ type: "def"' in payload_in_ses) or payload_in_ses == '{ type: "any" }':
+        elif ('{ type: "def"' in payload_in_ses):
             # extract payload type with the usual format to check it in schema
             def_part, name_part, payload_type = payload_in_ses.split(", ")
             payload_type = payload_type.replace('payload: { type: "', '')
@@ -168,22 +170,3 @@ def extract_types(payload_str:str) -> list:
     types = ["boolean" if t == "bool" else t for t in types]
 
     return types
-    
-if __name__ == "__main__":
-    example_tuple = json.dumps([1, 2, "and", False])
-    example_array1 = json.dumps([1, 2, 3]) # should be ok
-    
-    print(checkPayload(example_tuple, '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }',
-                                      '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }')) # should work
-    print(checkPayload(example_array1, '{ type: "array", payload: { type: "number" } }', '{ type: "array", payload: { type: "number" } }'))
-    print(checkPayload(example_tuple, '{ type: "union", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }',
-                                      '{ type: "union", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }')) # should work
-    # print(checkPayload(example_tuple, '{ type: "union", payload: [{ type: "string" }, { type: "bool" }] }',
-    #                                   '{ type: "union", payload: [{ type: "string" }, { type: "bool" }] }')) # shouldn't work
-    example_record = json.dumps({"age": 25, "name": "Alice", "isAdmin": True})
-
-    print(checkPayload(
-        example_record,
-        '{ type: "record", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }',
-        '{ type: "record", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }'
-    ))

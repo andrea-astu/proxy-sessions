@@ -128,7 +128,7 @@ class GlobalDict:
         Function that returns a protocol's session, usually in the form of a Choice session
 
             Args:
-                name (Label): name of the session to be returned
+                name (Label): name of the protocol
 
             Returns:
                 A protocol's session if found in the global dictionary or nothing otherwise
@@ -141,7 +141,7 @@ class GlobalDict:
 
 
 async def handle_session(ses_server: Session, ses_client: Session, server_socket, client_socket, 
-                         server_parser: Callable=None, client_parser: Callable=None, command:str=""):
+                         server_parser: Callable=None, client_parser: Callable=None, command:str="") -> tuple[Session, Session] | Exception:
     '''
     Performs actions depending on the given sessions and compares the server and client sessions are actually mirrored.
     Def sessions are not handled here because those define protocols and are instead handled in the define_protocols function.
@@ -156,7 +156,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
             command (str): Optional argument that refrences the action to be carried out; used for choice sessions
 
         Returns:
-            Two sessions; one for the server and one for the client
+            Two sessions; one for the server and one for the client. However, in case there is an exception, it returns it.
     '''
     # initialize sessions
     actual_sessions = (ses_server, ses_client)

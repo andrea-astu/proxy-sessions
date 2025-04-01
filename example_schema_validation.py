@@ -1,6 +1,15 @@
 import json
 from schema_validation import checkPayload
 
+def run_test(example, session_type, expected_type):
+    '''Runs a test case to show better which cases fail ans which succeed.'''
+    try:
+        result = checkPayload(example, session_type, expected_type)
+        print(f"[PASSED]: {result}")
+    except Exception as e:
+        print(f"[FAILED]: {str(e)}")
+
+
 if __name__ == "__main__":
     # define examples as json obects
     example_string = json.dumps("hello")
@@ -16,24 +25,26 @@ if __name__ == "__main__":
     "name": 7
     }
     example_def = json.dumps(example_def)
-    
+    example_record = json.dumps({"age": 25, "name": "Alice", "isAdmin": True})
 
     # run through tests
-    print(checkPayload(example_string, '{ type: "string" }', '{ type: "string" }'))
-    print(checkPayload(example_bool, '{ type: "bool" }', '{ type: "bool" }'))
-    print(checkPayload(example_null, '{ type: "null" }', '{ type: "null" }'))
-    print(checkPayload(example_number, '{ type: "number" }', '{ type: "number" }'))
-    print(checkPayload(example_array1, '{ type: "array" }, payload: { type: "number" } }', '{ type: "array" }, payload: { type: "number" } }'))
-    print(checkPayload(example_array2, '{ type: "array" }, payload: { type: "string" } }', '{ type: "array" }, payload: { type: "string" } }'))
-    print(checkPayload(example_tuple, '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }',
-                                      '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }')) # should work
-    print(checkPayload(example_tuple, '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }',
-                                      '{ type: "tuple" }, payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }')) # should fail because of length
-    print(checkPayload(example_tuple, '{ type: "tuple", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }, { type: "bool" }] }',
-                                      '{ type: "tuple", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }, { type: "bool" }] }'))# sould fail ebcause of type
-    print(checkPayload(example_tuple, '{ type: "union", payload: [{ type: "number" }, { type: "string" }] }',
-                                      '{ type: "union", payload: [{ type: "number" }, { type: "string" }] }')) # should fail because of type missing in components
-    print(checkPayload(example_tuple, '{ type: "union", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }',
-                                      '{ type: "union", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }')) # sould succeed
-    print(checkPayload(example_def, '{ type: "def", name: { type: "string" }, payload: { type: "number" } }',
-                                    '{ type: "def", name: { type: "string" }, payload: { type: "number" } }')) # basic def; usually should be in another structure
+    run_test(example_string, '{ type: "string" }', '{ type: "string" }')
+    run_test(example_bool, '{ type: "bool" }', '{ type: "bool" }')
+    run_test(example_null, '{ type: "null" }', '{ type: "null" }')
+    run_test(example_number, '{ type: "number" }', '{ type: "number" }')
+    run_test(example_array1, '{ type: "array", payload: { type: "number" } }', '{ type: "array", payload: { type: "number" } }')
+    run_test(example_array2, '{ type: "array", payload: { type: "string" } }', '{ type: "array", payload: { type: "string" } }')
+    run_test(example_tuple, '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }',
+                            '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }, { type: "bool" }] }') # should work
+    run_test(example_tuple, '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }',
+                            '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }') # should fail because of length
+    run_test(example_tuple, '{ type: "tuple", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }, { type: "bool" }] }',
+                            '{ type: "tuple", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }, { type: "bool" }] }') # sould fail ebcause of type
+    run_test(example_tuple, '{ type: "union", payload: [{ type: "number" }, { type: "string" }] }',
+                            '{ type: "union", payload: [{ type: "number" }, { type: "string" }] }') # should fail because of type missing in components
+    run_test(example_tuple, '{ type: "union", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }',
+                            '{ type: "union", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }') # sould succeed
+    run_test(example_def, '{ type: "def", name: { type: "string" }, payload: { type: "number" } }',
+                          '{ type: "def", name: { type: "string" }, payload: { type: "number" } }') # basic def; usually should be in another structure
+    run_test(example_record, '{ type: "record", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }',
+                             '{ type: "record", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }')
