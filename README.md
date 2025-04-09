@@ -49,7 +49,7 @@ For more examples and counterexamples, see the example_schema_validation file.
 
 The elements in [] describe the required information to create the session). Def sessions are used to describes protocols. Choice sessions are used to describe possible actions in these protocols. All sessions start with the keyword "Session:":
 
-**Single** [Session, Dir, Payload, Cont] (describes a message sent(*send*) or received(*recv*)): 'Session: Single, Dir: recv, Payload: { type: "number" }, Cont:...' *(Cont describes the session that happens after this one)*
+**Single** [Session, Dir, Payload, Cont] (describes a message sent(*send*) or received(*recv*)): 'Session: Single, Dir: recv, Payload: { type: "number" }, Cont:...' *(Cont describes the session that happens after this one)*  
 
 **Choice** [] (like a dictionary to define possible sessions to be chosen, which are described in "alternatives"): 'Session: Choice, Dir: recv, Alternatives: [(Label: Add, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: ...'
 
