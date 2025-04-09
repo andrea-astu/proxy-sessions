@@ -34,14 +34,31 @@ Note: you can see what proxy and server are handling by looking at the correspon
 Payload descriptions in sessions always start with '{ type:'  and end with ' }'. Some payload types have more information in their descriptions, such as the payload types they contain (in case they are an array, tuple or union). Make sure to respect the spaces between words in order to get the right syntax.
 
 **Booleans**: '{ type: "bool" }'
+
 **Strings**: '{ type: "string" }'
+
 **None**: '{ type: "null" }'
+
 **Number**: '{ type: "number" }'
-**Array** (can have any length but elements may only be of one payload type): '{ type: "array", payload: { type: "number" } }' *(the example payload here is number, but it accepts other payload types, such as bool, string, etc.)*
-**Tuple** (elements may be of different payload types, has a fixed length): '{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }' *(payload is a list that describes the type of each element in tuple)*
-**Union** (an array of any length; its elements can be of any type described in the payload list): '{ type: "union", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }' 
-**Def** (gives a payload and its name): '{ type: "def", name: { type: "string" }, payload: { type: "number" } }' **the name type must always be a string** 
-**Record** (the equivalent to a python dictionary): '{ type: "record", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }' **payload describes the payload types of the dictionary elements**
+
+**Array** (can have any length but elements may only be of one payload type):  
+'{ type: "array", payload: { type: "number" } }'  
+*(the example payload here is number, but it accepts other payload types, such as bool, string, etc.)*
+
+**Tuple** (elements may be of different payload types, has a fixed length):  
+'{ type: "tuple", payload: [{ type: "number" }, { type: "number" }, { type: "string" }] }'  
+*(payload is a list that describes the type of each element in tuple)*  
+
+**Union** (an array of any length; its elements can be of any type described in the payload list):  
+'{ type: "union", payload: [{ type: "number" }, { type: "bool" }, { type: "string" }] }'
+
+**Def** (gives a payload and its name):  
+'{ type: "def", name: { type: "string" }, payload: { type: "number" } }'  
+*the name type must always be a string*
+
+**Record** (the equivalent to a python dictionary):  
+'{ type: "record", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }'  
+*payload describes the payload types of the dictionary elements*
 
 For more examples and counterexamples, see the example_schema_validation file.
 
@@ -59,15 +76,17 @@ The elements in [] describe the required information to create the session). Def
 
 **End** (indicates the end of a session) [Session]: 'Session: End'
 
-Example of their use when defining a session:
+Example of their use when defining a session:  
 'Session: Def, Name: A, Cont: Session: Choice, Dir: recv, Alternatives: [(Label: Add, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Neg, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Quit, Session: End)]'
 
 
-The client and server sessions have to be mirrored; that is, they have to be parallel each other but with Single
+The client and server sessions have to be mirrored if they are describing the same protocol (Def session); with mirrored Single sessions, the client has to receive and the server sends, or viceversa, but both can't have the same direction at the same time.
 
-For more examples see the server and client example codes to see how sessions are described, specially as the *cont* parts were not included in some of these examples to make them mor readable.
+For more examples, see the server and client example codes to see how sessions are described, specially as the *cont* parts were not included in some of these examples to make them mor readable.
 
 
-## Notes
+## Parser
 
-In proxy_with_middle, there are two empty functions that can alter the payload sent from server to client (server_parser_func) and from client to server (client_parser_func). Feel free to write some code inside these functions if you want the proxy to regulate the messages sent between client and server. Note: the functions accept a parameter ("message") that represents the payload; make sure they return the same type of payload as the received message.
+In proxy_with_middle, there are two empty functions that can alter the payload sent from server to client (server_parser_func) and from client to server (client_parser_func). Feel free to write some code inside these functions if you want the proxy to regulate the messages sent between client and server.
+
+**Note**: the functions accept a parameter ("message") that represents the payload; make sure they return the same type of payload as the received message.
