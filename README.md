@@ -64,19 +64,24 @@ For more examples and counterexamples, see the example_schema_validation file.
 
 ### Session types and examples
 
-The elements in [] describe the required information to create the session). Def sessions are used to describes protocols. Choice sessions are used to describe possible actions in these protocols. All sessions start with the keyword "Session:":
+The elements in [] describe the required information to create the session. Def sessions are used to describe protocols. Choice sessions are used to describe possible actions in these protocols. All sessions start with the keyword "Session:":
 
-**Single** [Session, Dir, Payload, Cont] (describes a message sent(*send*) or received(*recv*)): 'Session: Single, Dir: recv, Payload: { type: "number" }, Cont:...' *(Cont describes the session that happens after this one)*  
+**Single** [Session, Dir, Payload, Cont] (describes a message sent(*send*) or received(*recv*)):  
+'Session: Single, Dir: recv, Payload: { type: "number" }, Cont:...'  
+*(Cont describes the session that happens after this one)*  
 
-**Choice** [] (like a dictionary to define possible sessions to be chosen, which are described in "alternatives"): 'Session: Choice, Dir: recv, Alternatives: [(Label: Add, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: ...'
+**Choice** [Session, Dir, Alternatives] (like a dictionary to define possible sessions to be chosen, which are described in "alternatives"):  
+'Session: Choice, Dir: recv, Alternatives: [(Label: Add, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: ...'  
 
-**Def** (define a session) [Session, Name, Cont]: 'Session: Def, Name: A, Cont: ...' *(Cont describes the session that happens after this one)* 
+**Def** (define a session) [Session, Name, Cont]:  
+'Session: Def, Name: A, Cont: ...'  
+*(Cont describes the session that happens after this one)* 
 
 **Ref** (references a session, usually a Def one) [Session, Name]: 'Session: Ref, Name: A'
 
 **End** (indicates the end of a session) [Session]: 'Session: End'
 
-Example of their use when defining a session:  
+**Example of their use when defining a session:**  
 'Session: Def, Name: A, Cont: Session: Choice, Dir: recv, Alternatives: [(Label: Add, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Neg, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Quit, Session: End)]'
 
 
