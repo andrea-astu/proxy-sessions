@@ -168,47 +168,49 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
     # carry out sessions in a loop (useful for cont)
     while ses_server_actual.kind != "end" and ses_client_actual.kind != "end":
         # type single (transports payload from server to client or vice versa)
-        # rteurns End sessions if schema validation fails -> could be handled differently
-        if ses_server_actual.kind == "single" and ses_client_actual.kind == "single":
-            # client sends payload to server
-            if ses_server_actual.dir == "recv" and ses_client_actual.dir == "send":
-                payload_to_transport = client_parser(await client_socket.recv())
-                # check the payload type being transported matches the payload types defined in the sessions
-                try:
-                    print(schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload))
-                    await server_socket.send(payload_to_transport)
-                    print("Message sent from client to server") # to track what proxy is doing at moment -> could be removed
-                except Exception as e:
-                    raise SchemaValidationError(f"Schema validation from client payload failed: {e}")
-            # server sends payload to client
-            elif ses_server_actual.dir == "send" and ses_client_actual.dir == "recv":
-                payload_to_transport = server_parser(await server_socket.recv())
-                # check the payload type being transported matches the payload types defined in the sessions
-                try:
-                    print(schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload))
-                    await client_socket.send(payload_to_transport) # transport payload if type is ok
-                    print("Message sent from server to client") # to track what proxy is doing at moment -> could be removed
-                except Exception as e:
-                    # if server schema validation fails
-                    await client_socket.send(json.dumps("Error: schema validation failed")) # send error message to cleint
-                    raise SchemaValidationError(f"Schema validation from client payload failed: {e}")
-            else:
-                print ("Error: The direction given to the Single session is not recognized or server and client do not have opposing directions.") # not handled as exception but could be
+        # returns End sessions if schema validation fails -> could be handled differently
+        match (ses_server_actual.kind, ses_client_actual.kind):
+            case ("single", "single"):
+                match (ses_server_actual.dir, ses_client_actual.dir):
+                    # client sends payload to server
+                    case ("recv", "send"):
+                        payload_to_transport = client_parser(await client_socket.recv())
+                        # check the payload type being transported matches the payload types defined in the sessions
+                        try:
+                            print(schema_validation.checkPayload(payload_to_transport, ses_client_actual.payload, ses_server_actual.payload))
+                            await server_socket.send(payload_to_transport)
+                            print("Message sent from client to server") # to track what proxy is doing at moment -> could be removed
+                        except Exception as e:
+                            raise SchemaValidationError(f"Schema validation from client payload failed: {e}")
+                    # server sends payload to client
+                    case ("send", "recv"):
+                        payload_to_transport = server_parser(await server_socket.recv())
+                        # check the payload type being transported matches the payload types defined in the sessions
+                        try:
+                            print(schema_validation.checkPayload(payload_to_transport, ses_server_actual.payload, ses_client_actual.payload))
+                            await client_socket.send(payload_to_transport) # transport payload if type is ok
+                            print("Message sent from server to client") # to track what proxy is doing at moment -> could be removed
+                        except Exception as e:
+                            # if server schema validation fails
+                            await client_socket.send(json.dumps("Error: schema validation failed")) # send error message to cleint
+                            raise SchemaValidationError(f"Schema validation from client payload failed: {e}")
+                    case _:
+                        print ("Error: The direction given to the Single session is not recognized or server and client do not have opposing directions.") # not handled as exception but could be
+                        return End(), End()
+                actual_sessions = (ses_server_actual.cont, ses_client_actual.cont) # after a single session start next session
+            # type choice (choose a session inside a protocol)
+            case("choice", "choice"):
+                # print(f'Looking up action: {command}...') # comment out to debug
+                actual_sessions = (ses_server_actual.lookup(Label(command)), ses_client_actual.lookup(Label(command)))
+            # type ref (always returns a session of type choice)
+            case("ref", "ref"):
+                # print(f'Referencing server session {ses_server_actual.name} and client session {ses_client_actual.name}...') # comment out to debug
+                found_server = protocol_info.lookup(ses_server_actual.name)
+                found_client = protocol_info.lookup(ses_client_actual.name)
+                return found_server, found_client
+            case _:
+                print ("Error: Unknown session type or sessions don't match") # not handled as exception but could be
                 return End(), End()
-            actual_sessions = (ses_server_actual.cont, ses_client_actual.cont) # after a single session start next session
-        # type choice (choose a session inside a protocol)
-        elif ses_server_actual.kind == "choice" and ses_client_actual.kind == "choice":
-            # print(f'Looking up action: {command}...') # comment out to debug
-            actual_sessions = (ses_server_actual.lookup(Label(command)), ses_client_actual.lookup(Label(command)))
-        # type ref (always returns a session of type choice)
-        elif ses_server_actual.kind == "ref" and ses_client_actual.kind == "ref":
-            # print(f'Referencing server session {ses_server_actual.name} and client session {ses_client_actual.name}...') # comment out to debug
-            found_server = protocol_info.lookup(ses_server_actual.name)
-            found_client = protocol_info.lookup(ses_client_actual.name)
-            return found_server, found_client
-        else:
-            print ("Error: Unknown session type or sessions don't match") # not handled as exception but could be
-            return End(), End()
         # update sessions to use in while loop
         ses_server_actual = actual_sessions[0]
         ses_client_actual = actual_sessions[1]
@@ -405,7 +407,7 @@ if __name__ == "__main__":
         parser.add_argument("-s", "--serverport", default = "7890", help="Server port number")
         args = parser.parse_args()
         print(f"Welcome to the proxy!\nProxy port: {args.proxyport}\nServer port or address: {args.serverport}")
-        
+
         # check server val
         if args.serverport.isnumeric():
             server_address = f"ws://127.0.0.1:{args.serverport}"
