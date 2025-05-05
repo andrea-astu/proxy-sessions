@@ -1,0 +1,4 @@
+The following python libraries need to be installed:
+
+websockets
+jsonschema
