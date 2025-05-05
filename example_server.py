@@ -46,17 +46,16 @@ async def ws_server(websocket):
                                 c = a + b
                                 await websocket.send(json.dumps(c)) # convert payload to json and send to proxy
                                 print(f'Sent payload: {c}')
-                                protocol == "A"
+                                # protocol == "A"
                             
                             case "Neg":
                                 a = json.loads(await websocket.recv()) # receive number
                                 b = -a
                                 await websocket.send(json.dumps(b)) # convert payload to json and send to proxy
                                 print(f'Sent payload: {b}')
-                                protocol == "A"
                             
                             case "Quit":
-                                protocol == "" # to exit protocol A
+                                pass # break
 
                     
                     case "B":
@@ -69,15 +68,14 @@ async def ws_server(websocket):
                                 name = json.loads(await websocket.recv()) # receive name
                                 nickname = name[:3] # first three letters of name
                                 await websocket.send(json.dumps(nickname)) # send changed name
-                                protocol == "B"
-                            
 
+                            
                             case "Goodbye":
                                 await websocket.send(json.dumps("May we meet again"))
-                                protocol == "B"
+                                # protocol == "B"
                             
                             case "Quit":
-                                protocol == "" # to exit protocol A
+                                pass # break
 
 
                     case _:

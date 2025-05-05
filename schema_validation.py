@@ -2,7 +2,9 @@ import json
 import jsonschema
 import re # to parse payload types for tuple and union
 
-# ---------------- define schemas -------------------------------------------------------------------
+# ---------------- define json schemas ----------------------------------------------------------------
+# these schemas are like the "templates" the payload types are compared against
+
 # num schema
 schema_number = {
 "type": "number"
@@ -86,7 +88,7 @@ def schema_record(field_names: list, type_list: list):
 # any is considered any of the other types
 def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> str | Exception:
     '''
-    Compares the actual payload against the expected one.
+    Checks the actual payload is of the type expected by both the server and the client.
 
     Args:
         payload_sender: payload that was sent (actual object)
@@ -143,6 +145,17 @@ def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> 
             raise TypeError("Error! payload is not of a recognized type")
 
 def try_schema(data, schema_to_check, expected) -> str | Exception:
+    '''
+    Compares the payload against a json schema to see if it matches it's supposed type.
+
+    Args:
+        data: actual payload to be checked
+        schema_to_check: json schema of the payload type; one of the ones defined at the start of the code
+        expected: name of the expected type of payload
+
+    Returns:
+        A string if it worked and a json schema exception otherwise
+    '''
     try:
         jsonschema.validate(instance=data, schema=schema_to_check)  # Validate against schema
         return(f"Valid payload type")

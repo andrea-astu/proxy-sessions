@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Callable
+from typing import Callable
 
 import re # to parse Connection addresses
 
@@ -32,8 +32,8 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
             ses_client (Session): actual session the client is carrying out
             server_socket: socket to communicate between proxy and server
             client_socket: socket to communicate between proxy and client
-            server_parser (Callable): optional function that changes the server message before sending it to the client
-            client_parser (Callable): optional function that changes the client message before sending it to the server
+            server_parser (Callable): function that changes the server message before sending it to the client
+            client_parser (Callable): function that changes the client message before sending it to the server
             command (str): Optional argument that refrences the action to be carried out; used for choice sessions
 
         Returns:
@@ -138,7 +138,8 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
                 protocol_name = protocol_name[10:] # protocol message structure: "Protocol: ___" 
                 print(f'Executing protocol {protocol_name}...') # to track what proxy is doing at moment -> could be removed
                 # get both client and server sessions by referencing protocol
-                actual_ses_server, actual_ses_client = await handle_session(Ref(f"{protocol_name}_server"), Ref(f"{protocol_name}_client"), server_ws, websocket_client) # choice session
+                actual_ses_server, actual_ses_client = await handle_session(Ref(f"{protocol_name}_server"), Ref(f"{protocol_name}_client"),
+                                                                            server_ws, websocket_client, server_parser, client_parser) # choice session
                 # recursively carry out sessions until we get two "End" sessions back
                 while actual_ses_server.kind != "end" and actual_ses_client.kind != "end":
                     await server_ws.send(protocol_name) # always have to tell server which protocol is being used
