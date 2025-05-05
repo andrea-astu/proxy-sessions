@@ -6,6 +6,13 @@ class Dir:
     def __init__(self, dir: str):
         self.dir = dir # only send or recv
 
+    # to make it work with session to string parser
+    def __str__(self):
+        return self.dir
+
+    def __repr__(self):
+        return self.dir
+
 @dataclass(frozen=True)
 class Label:
     label: str

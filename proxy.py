@@ -250,6 +250,48 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
     else:
         print("Errror: Invalid request") # not handled as exception but could be
 
+def session_into_message(session: Session) -> str:
+    '''
+    Serializes a Session object into a string.
+    
+        Args:
+            session (Session): the session object to serialize
+        
+        Returns:
+            str: string representation of the session
+    '''
+    if isinstance(session, Single):
+        return (
+            f"Session: Single, Dir: {session.dir}, Payload: {session.payload}, "
+            f"Cont: {session_into_message(session.cont)}"
+        )
+    
+    elif isinstance(session, Def):
+        return (
+            f"Session: Def, Name: {session.name}, Cont: {session_into_message(session.cont)}"
+        )
+    
+    elif isinstance(session, Ref):
+        return f"Session: Ref, Name: {session.name}"
+    
+    elif isinstance(session, Choice):
+        alternatives = []
+        for label_given, alt_session in session.alternatives.items():
+            alt_str = (
+                f"(Label: {label_given.label}, Session: {session_into_message(alt_session)[9:]})"
+            )
+            alternatives.append(alt_str)
+        return (
+            f"Session: Choice, Dir: {session.dir}, Alternatives: [{', '.join(alternatives)}]"
+        )
+    
+    elif isinstance(session, End):
+        return "Session: End"
+    
+    else:
+        raise ValueError("Unknown session type")
+
+
 # DEFINE FUNCTIONS HERE!
 # For now they're meant to not change the messages at all
 def server_parser_func(message):
