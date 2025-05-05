@@ -1,6 +1,7 @@
 import websockets
 import asyncio
 import json
+import argparse
 
 
 async def ws_server(websocket):
@@ -90,16 +91,25 @@ async def ws_server(websocket):
         await websocket.close()
  
  
-async def main():
+async def main(port):
     '''
     Creates a WebSocket server that listens on localhost:7890.
     Whenever a client connects to the server, websockets.serve automatically calls ws_server, 
     passing in a new websocket object (which represents the connection with that client).
+
+    Args:
+        port: The port from which server is reachable.
     '''
-    async with websockets.serve(ws_server, "localhost", 7890): # the port can be changed depending on preference
+    print(f"Using port {port}")
+    async with websockets.serve(ws_server, "localhost", port): # the port can be changed depending on preference
         await asyncio.Future()  # run forever because servers must always be active
  
 if __name__ == "__main__":
+    # take port as flag
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--port", default = "7890", help="Port number")
+    args = parser.parse_args()
+
     # start code
     print("Server started ...")
-    asyncio.run(main())
+    asyncio.run(main(args.port))
