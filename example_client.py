@@ -20,29 +20,19 @@ def confirm_server_payload(message):
     else: return message
 
 
-
  
 async def ws_client():
     '''
-    Handles connection and sends and receives payloads according to intrecation with user.
+    Handles connection and sends and receives payloads according to interation with user.
     '''
     try:
         print("Connecting client...")
         url = "ws://127.0.0.1:7891" # 7891 is proxy port
 
-        # protocols (server should have same protcols but mirrored)
-        protocol_a_str = 'Session: Def, Name: A, Cont: Session: Choice, Dir: recv, Alternatives: [(Label: Add, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Neg, Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Quit, Session: End)]'
-        protocol_b_str = 'Session: Def, Name: B, Cont: Session: Choice, Dir: recv, Alternatives: [(Label: Greeting, Session: Single, Dir: send, Payload: { type: "string" }, Cont: Session: Single, Dir: recv, Payload: { type: "string" }, Cont: Session: Ref, Name: B), (Label: Goodbye, Session: Single, Dir: recv, Payload: { type: "string" }, Cont: Session: Ref, Name: B), (Label: Quit, Session: End)]'
-
         # Connect to the proxy/server
         async with websockets.connect(url) as ws:
+            # protocol defined by server
 
-            # define protocols
-            print("Defining protocols...")
-            await ws.send(json.dumps(protocol_a_str))
-            await ws.send(json.dumps(protocol_b_str))
-            await ws.send(json.dumps("Session: End")) # signals we are done sending protocols
-            
             # Greeting procedure
             name = input("Hi! What is your name?: ")
             await ws.send("Protocol: B") # choosing protocol

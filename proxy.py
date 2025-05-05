@@ -95,7 +95,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
     return End(), End() # only returned when both sessions are end sessions
     
 
-async def define_protocols(ws_socket, type_socket:str):
+async def define_protocols(ws_socket):
     '''
     Receives strings from client or server that define protocols as Def sessions and adds them to the global
     dictionary until an End Session is received.
@@ -105,17 +105,23 @@ async def define_protocols(ws_socket, type_socket:str):
             type_socket (str): can either be "server" or "client" depending on which party is sending the protocols
     '''
     session_as_str = json.loads(await ws_socket.recv()) # first protocol; minimum one has to be defined
-    protocol_definition = message_into_session(session_as_str, type_socket) # send type to session conversion so it can be added to name
-    protocol_info.add(protocol_definition) # add protocol to global dictionary
+    # define server session
+    protocol_definition_server = message_into_session(session_as_str, "server") # send type to session conversion so it can be added to name
+    protocol_info.add(protocol_definition_server) # add server protocol to global dictionary
+    # define client session
+    protocol_definition_client = message_into_session(session_as_str, "client") # send type to session conversion so it can be added to name
+    protocol_info.add(protocol_definition_client) # add client protocol to global dictionary
 
     # define more protocols
-    while protocol_definition.kind != "end":
+    while protocol_definition_server.kind != "end":
         session_as_str = json.loads(await ws_socket.recv())
-        protocol_definition = message_into_session(session_as_str, type_socket)
-        if protocol_definition.kind != "end":
-            protocol_info.add(protocol_definition)
+        protocol_definition_server = message_into_session(session_as_str, "server")
+        if protocol_definition_server.kind != "end":
+            protocol_info.add(protocol_definition_server) # add server protocol to global dictionary
+            protocol_definition_client = message_into_session(session_as_str, "client") # make client session
+            protocol_info.add(protocol_definition_client) # add client protocol to global dictionary
     
-    print(f"Registered {type_socket} protocols") # to track what proxy is doing at moment -> could be removed
+    print(f"Registered protocols") # to track what proxy is doing at moment -> could be removed
 
 async def proxy_websockets(server:str, websocket_client, server_parser: Callable, client_parser: Callable):
     '''
@@ -130,8 +136,7 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
     async with websockets.connect(server) as server_ws:
         try:
             # define protocols
-            await define_protocols(server_ws, "server")
-            await define_protocols(websocket_client, "client")
+            await define_protocols(server_ws)
         
             while True:
                 protocol_name = await websocket_client.recv() # client chooses protocol 
@@ -167,7 +172,8 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
 
         Args:
             ses_info (str): session as a string
-            type_socket (str): optional string for Def sessions to add server or client marker to protocol name
+            type_socket (str): optional string for Def sessions to add server or client marker to protocol name and change dir
+                               (has to be either "client" or "server")
         
         Returns:
             The parsed session
@@ -182,8 +188,17 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
             match = re.match(pattern, ses_info)
             if match:
                 dir_given, pay_given, cont_ses = match.groups()
-                if ((dir_given != "send") and (dir_given != "recv")): # make sure direction can ONLY be send or receive
-                    print("Error: invalid direction given") # not handled as exception but could be
+                match (dir_given, type_socket):
+                    case ("send", "server"):
+                        dir_given = "send"
+                    case ("send", "client"):
+                        dir_given = "recv"
+                    case ("recv", "server"):
+                        dir_given = "recv"
+                    case ("recv", "client"):
+                        dir_given = "send"
+                    case _:
+                        print("Error: invalid direction given") # not handled as exception but could be
                 #return single session and parse the cont str to make it a session too
                 session_changed = Single(dir=dir_given, payload=pay_given, cont=message_into_session(cont_ses, type_socket))
             else:
