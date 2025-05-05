@@ -101,14 +101,17 @@ async def ws_server(websocket):
                         print(f'Doing action {action}')
 
                         match action:
-                            case "Greeting":
-                                name = json.loads(await websocket.recv()) # receive name
-                                nickname = name[:3] # first three letters of name
-                                await websocket.send(json.dumps(nickname)) # send changed name
+                            case "Divide":
+                                num1 = json.loads(await websocket.recv())
+                                num2 = json.loads(await websocket.recv())
+                                division = num1 / num2
+                                await websocket.send(json.dumps(division)) # send result of division
 
                             
-                            case "Goodbye":
-                                await websocket.send(json.dumps("May we meet again"))
+                            case "List":
+                                sentence = json.loads(await websocket.recv()) # receive string
+                                new_list = sentence.split() # split a sentence by spaces
+                                await websocket.send(json.dumps(new_list))
                                 
                             
                             case "Quit":
