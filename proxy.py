@@ -226,13 +226,13 @@ async def define_protocols(ws_socket, type_socket:str):
             ws_socket: client or server socket to receive and send information
             type_socket (str): can either be "server" or "client" depending on which party is sending the protocols
     '''
-    session_as_str = await ws_socket.recv() # first protocol; minimum one has to be defined
+    session_as_str = json.loads(await ws_socket.recv()) # first protocol; minimum one has to be defined
     protocol_definition = message_into_session(session_as_str, type_socket) # send type to session conversion so it can be added to name
-    protocol_info.add(protocol_definition) # add protocl to global dictionary
+    protocol_info.add(protocol_definition) # add protocol to global dictionary
 
     # define more protocols
     while protocol_definition.kind != "end":
-        session_as_str = await ws_socket.recv()
+        session_as_str = json.loads(await ws_socket.recv())
         protocol_definition = message_into_session(session_as_str, type_socket)
         if protocol_definition.kind != "end":
             protocol_info.add(protocol_definition)

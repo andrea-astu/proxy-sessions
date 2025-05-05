@@ -39,9 +39,9 @@ async def ws_client():
 
             # define protocols
             print("Defining protocols...")
-            await ws.send(protocol_a_str)
-            await ws.send(protocol_b_str)
-            await ws.send("Session: End") # signals we are done sending protocols
+            await ws.send(json.dumps(protocol_a_str))
+            await ws.send(json.dumps(protocol_b_str))
+            await ws.send(json.dumps("Session: End")) # signals we are done sending protocols
             
             # Greeting procedure
             name = input("Hi! What is your name?: ")

@@ -22,9 +22,9 @@ async def ws_server(websocket):
 
             # send protocols to proxy
             print("Sending protocols to proxy...")
-            await websocket.send(protocol_a_str)
-            await websocket.send(protocol_b_str)
-            await websocket.send("Session: End") # signals we are done sending protocols
+            await websocket.send(json.dumps(protocol_a_str))
+            await websocket.send(json.dumps(protocol_b_str))
+            await websocket.send(json.dumps("Session: End")) # signals we are done sending protocols
 
             while True:
                 # receive protocol info
