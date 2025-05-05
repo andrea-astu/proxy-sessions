@@ -35,15 +35,13 @@ async def ws_client():
 
             # Greeting procedure
             name = input("Hi! What is your name?: ")
-            await ws.send("Protocol: B") # choosing protocol
+            await ws.send("Protocol: A") # choosing protocol
             await ws.send("Greeting") # choosing "action" (session in a protocol)
             await ws.send(json.dumps(name)) # sending info
             nickname = confirm_server_payload(json.loads(await ws.recv()))
             print(f'Your assigned nickname is: {nickname}')
-            await ws.send("Quit") # quit protocol b
             
             # negation
-            await ws.send("Protocol: A") # choosing protocol
             await ws.send("Neg") # choosing "action"
             given_num = input(f'{nickname}, please give a number to negate: ')
             await ws.send(json.dumps(int(given_num)))
@@ -59,16 +57,14 @@ async def ws_client():
             combined_ages = confirm_server_payload(json.loads(await ws.recv()))
             print(f'The ages of you and the other person combined are: {str(combined_ages)}')
 
-            await ws.send("Quit") # quit protocol a
 
             # Goodbye procedure
-            await ws.send("Protocol: B") # choosing protocol
             await ws.send("Goodbye") # choosing "action"
             farewell = confirm_server_payload(json.loads(await ws.recv()))
             print(f'{farewell} {nickname}!')
-            await ws.send("Quit") # quit protocol b
 
             # close code
+            await ws.send("Quit") # quit protocol
             print("Client code finished. Closing terminal in 5 seconds ...")
             time.sleep(5)
     except:

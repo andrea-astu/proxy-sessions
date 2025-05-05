@@ -250,7 +250,8 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
     else:
         print("Errror: Invalid request") # not handled as exception but could be
 
-# DEFINE OPTIONAL FUNCTIONS HERE!
+# DEFINE FUNCTIONS HERE!
+# For now they're meant to not change the messages at all
 def server_parser_func(message):
     return message
 

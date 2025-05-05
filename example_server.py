@@ -3,6 +3,9 @@ import asyncio
 import json
 import argparse
 
+# in order to 
+from session_types import *
+
 
 async def ws_server(websocket):
     '''
@@ -16,9 +19,36 @@ async def ws_server(websocket):
         while True:
 
             # define protocols
-            # payloads can only be sent to proxy through string
-            protocol_a_str = 'Session: Def, Name: A, Cont: Session: Choice, Dir: send, Alternatives: [(Label: Add, Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Neg, Session: Single, Dir: recv, Payload: { type: "number" }, Cont: Session: Single, Dir: send, Payload: { type: "number" }, Cont: Session: Ref, Name: A), (Label: Quit, Session: End)]'
-            protocol_b_str = 'Session: Def, Name: B, Cont: Session: Choice, Dir: send, Alternatives: [(Label: Greeting, Session: Single, Dir: recv, Payload: { type: "string" }, Cont: Session: Single, Dir: send, Payload: { type: "string" }, Cont: Session: Ref, Name: B), (Label: Goodbye, Session: Single, Dir: send, Payload: { type: "string" }, Cont: Session: Ref, Name: B), (Label: Quit, Session: End)]'
+            protocol_a_str = (
+                'Session: Def, Name: A, Cont: Session: Choice, Dir: send, Alternatives: '
+                '[(Label: Add, Session: Single, Dir: recv, Payload: { type: "number" }, Cont: '
+                'Session: Single, Dir: recv, Payload: { type: "number" }, Cont: '
+                'Session: Single, Dir: send, Payload: { type: "number" }, Cont: '
+                'Session: Ref, Name: A), '
+                '(Label: Neg, Session: Single, Dir: recv, Payload: { type: "number" }, Cont: '
+                'Session: Single, Dir: send, Payload: { type: "number" }, Cont: '
+                'Session: Ref, Name: A), '
+                '(Label: Greeting, Session: Single, Dir: recv, Payload: { type: "string" }, Cont: '
+                'Session: Single, Dir: send, Payload: { type: "string" }, Cont: '
+                'Session: Ref, Name: A), '
+                '(Label: Goodbye, Session: Single, Dir: send, Payload: { type: "string" }, Cont: '
+                'Session: Ref, Name: A), '
+                '(Label: Quit, Session: End)]'
+            )
+
+            # protocol_a = 
+
+            protocol_b_str = (
+                'Session: Def, Name: B, Cont: Session: Choice, Dir: send, Alternatives: ['
+                '(Label: Divide, Session: Single, Dir: recv, Payload: { type: "number" }, Cont: '
+                'Session: Single, Dir: recv, Payload: { type: "number" }, Cont: '
+                'Session: Single, Dir: send, Payload: { type: "number" }, Cont: '
+                'Session: Ref, Name: B), '
+                '(Label: List, Session: Single, Dir: recv, Payload: { type: "string" }, Cont: '
+                'Session: Single, Dir: send, Payload: { type: "array", payload: { type: "number" } }, Cont: '
+                'Session: Ref, Name: B), '
+                '(Label: Quit, Session: End)]'
+            )
 
             # send protocols to proxy
             print("Sending protocols to proxy...")
@@ -46,7 +76,6 @@ async def ws_server(websocket):
                                 c = a + b
                                 await websocket.send(json.dumps(c)) # convert payload to json and send to proxy
                                 print(f'Sent payload: {c}')
-                                # protocol == "A"
                             
                             case "Neg":
                                 a = json.loads(await websocket.recv()) # receive number
@@ -54,8 +83,16 @@ async def ws_server(websocket):
                                 await websocket.send(json.dumps(b)) # convert payload to json and send to proxy
                                 print(f'Sent payload: {b}')
                             
+                            case "Greeting":
+                                name = json.loads(await websocket.recv()) # receive name
+                                nickname = name[:3] # first three letters of name
+                                await websocket.send(json.dumps(nickname)) # send changed name
+
+                            case "Goodbye":
+                                await websocket.send(json.dumps("May we meet again"))
+                            
                             case "Quit":
-                                pass # break
+                                break
 
                     
                     case "B":
@@ -72,10 +109,10 @@ async def ws_server(websocket):
                             
                             case "Goodbye":
                                 await websocket.send(json.dumps("May we meet again"))
-                                # protocol == "B"
+                                
                             
                             case "Quit":
-                                pass # break
+                                break
 
 
                     case _:
