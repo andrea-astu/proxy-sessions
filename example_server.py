@@ -32,54 +32,57 @@ async def ws_server(websocket):
                 print(f'Got protocol {protocol}')
 
                 # process previously defined prtocols
-                if protocol == "A":
-                    # choose option in protocol
-                    action = await websocket.recv()
-                    # action refers to a specific session inside a protocol
-                    print(f'Doing action: {action}')
+                match protocol:
+                    case "A":
+                        # choose option in protocol
+                        action = await websocket.recv()
+                        # action refers to a specific session inside a protocol
+                        print(f'Doing action: {action}')
 
-                    if action == "Add":
-                        a = json.loads(await websocket.recv()) # receive number
-                        b = json.loads(await websocket.recv()) # receive number
-                        c = a + b
-                        await websocket.send(json.dumps(c)) # convert payload to json and send to proxy
-                        print(f'Sent payload: {c}')
-                        protocol == "A"
+                        match action:
+                            case "Add":
+                                a = json.loads(await websocket.recv()) # receive number
+                                b = json.loads(await websocket.recv()) # receive number
+                                c = a + b
+                                await websocket.send(json.dumps(c)) # convert payload to json and send to proxy
+                                print(f'Sent payload: {c}')
+                                protocol == "A"
+                            
+                            case "Neg":
+                                a = json.loads(await websocket.recv()) # receive number
+                                b = -a
+                                await websocket.send(json.dumps(b)) # convert payload to json and send to proxy
+                                print(f'Sent payload: {b}')
+                                protocol == "A"
+                            
+                            case "Quit":
+                                protocol == "" # to exit protocol A
+
                     
-                    if action == "Neg":
-                        a = json.loads(await websocket.recv()) # receive number
-                        b = -a
-                        await websocket.send(json.dumps(b)) # convert payload to json and send to proxy
-                        print(f'Sent payload: {b}')
-                        protocol == "A"
-                    
-                    if action == "Quit":
-                        protocol == "" # to exit protocol A
+                    case "B":
+                        # choose option in protocol
+                        action = await websocket.recv()
+                        print(f'Doing action {action}')
 
-                
-                elif protocol == "B":
-                    # choose option in protocol
-                    action = await websocket.recv()
-                    print(f'Doing action {action}')
+                        match action:
+                            case "Greeting":
+                                name = json.loads(await websocket.recv()) # receive name
+                                nickname = name[:3] # first three letters of name
+                                await websocket.send(json.dumps(nickname)) # send changed name
+                                protocol == "B"
+                            
 
-                    if action == "Greeting":
-                        name = json.loads(await websocket.recv()) # receive name
-                        nickname = name[:3] # first three letters of name
-                        await websocket.send(json.dumps(nickname)) # send changed name
-                        protocol == "B"
-                    
-
-                    if action == "Goodbye":
-                        await websocket.send(json.dumps("May we meet again"))
-                        protocol == "B"
-                    
-                    if action == "Quit":
-                        protocol == "" # to exit protocol A
+                            case "Goodbye":
+                                await websocket.send(json.dumps("May we meet again"))
+                                protocol == "B"
+                            
+                            case "Quit":
+                                protocol == "" # to exit protocol A
 
 
-                else:
-                    print(f'This protocol is not recognized') # could be handled as an exception
-                    await websocket.send("Session: End")
+                    case _:
+                        print(f'This protocol is not recognized') # could be handled as an exception
+                        await websocket.send("Session: End")
     # handle ok and unexpected connections
     except websockets.ConnectionClosedOK:
         print("Client connection finished...")
