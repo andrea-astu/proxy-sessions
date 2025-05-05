@@ -12,6 +12,9 @@ import schema_validation
 # to send schema error message to client
 import json
 
+# to define ports as flags (optional arguments)
+import argparse
+
 # ------------------- define session types -----------------------------------------------
 
 # define dir and label
@@ -395,37 +398,24 @@ if __name__ == "__main__":
     
     while True:
         protocol_info = GlobalDict({}) # initialize global dictionary for protocols
-        print("Welcome! To start, please establish a connection. Write 'quit' if you wish to quit the proxy.")
 
-        # user input
-        proxy_val = input("Proxy port: ")
-        server_val = input("Server port or address: ")
-
-        # quit if user wishes to do so
-        if proxy_val.lower() == "quit" or server_val.lower() == "quit":
-            print("Closing proxy...")
-            asyncio.sleep(3)  # Wait before exit
-            exit()
-
-        # check proxy val
-        if proxy_val.lower() == "default":
-            proxy_address = 7891
-        elif proxy_val.isnumeric():
-            proxy_address = int(proxy_val)
-        else:
-            proxy_address = proxy_val
+        # define ports for proxy and server as flags
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-pr", "--proxyport", default = "7891", help="Proxy port number")
+        parser.add_argument("-s", "--serverport", default = "7890", help="Server port number")
+        args = parser.parse_args()
+        print(f"Welcome to the proxy!\nProxy port: {args.proxyport}\nServer port or address: {args.serverport}")
+        
         # check server val
-        if server_val.lower() == "default":
-            server_address = "ws://127.0.0.1:7890"
-        elif server_val.isnumeric():
-            server_address = f"ws://127.0.0.1:{server_val}"
+        if args.serverport.isnumeric():
+            server_address = f"ws://127.0.0.1:{args.serverport}"
         else:
-            server_address = server_val
+            server_address = args.serverport
         
         print("Connecting...")
 
         try:
             # run proxy
-            asyncio.run(start_proxy(proxy_address, server_address))
+            asyncio.run(start_proxy(args.proxyport, server_address))
         except Exception as e:
             print(f"The proxy encountered an error. Please try again!")
