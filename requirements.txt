@@ -1,4 +1,4 @@
-The following python libraries need to be installed:
+The following pip modules need to be installed:
 
 websockets
 jsonschema
