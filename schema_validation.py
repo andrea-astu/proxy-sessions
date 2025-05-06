@@ -63,7 +63,7 @@ def schema_tuple(type_list: list, supposed_length: int):
         "maxItems": supposed_length
     }
 # union schema
-def schema_union(type_array:str):
+def schema_union(type_array:list[str]):
     return {
         "type": "array",
         "items": {
