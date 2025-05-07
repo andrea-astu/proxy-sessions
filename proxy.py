@@ -1,6 +1,6 @@
 from typing import Callable
 
-import re # to parse Connection addresses
+import re # used for parsing sessions
 
 # websockets imports
 import websockets
@@ -22,7 +22,7 @@ from session_types import * # for session types, dictionary and schema error
 # ---- Client and server communications, session handlers -----------------------------------------------
 
 async def handle_session(ses_server: Session, ses_client: Session, server_socket, client_socket, 
-                         server_parser: Callable, client_parser: Callable, command:str="") -> tuple[Session, Session] | Exception:
+                         server_parser: Callable, client_parser: Callable, command:str="") -> tuple[Session, Session]:
     '''
     Performs actions depending on the given sessions and compares the server and client sessions are actually mirrored.
     Def sessions are not handled here because those define protocols and are instead handled in the define_protocols function.
@@ -44,11 +44,11 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
     ses_server_actual = actual_sessions[0]
     ses_client_actual = actual_sessions[1]
     # carry out sessions in a loop (useful for cont)
-    while ses_server_actual.kind != "end" and ses_client_actual.kind != "end":
+    while (not isinstance(ses_server_actual, End)) and (not isinstance(ses_client_actual, End)):
         # type single (transports payload from server to client or vice versa)
         # returns End sessions if schema validation fails -> could be handled differently
-        match (ses_server_actual.kind, ses_client_actual.kind):
-            case ("single", "single"):
+        match (ses_server_actual, ses_client_actual):
+            case (Single(), Single()):
                 match (ses_server_actual.dir, ses_client_actual.dir):
                     # client sends payload to server
                     case ("recv", "send"):
@@ -77,15 +77,19 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                         return End(), End()
                 actual_sessions = (ses_server_actual.cont, ses_client_actual.cont) # after a single session start next session
             # type choice (choose a session inside a protocol)
-            case("choice", "choice"):
+            case(Choice(), Choice()):
                 # print(f'Looking up action: {command}...') # comment out to debug
                 actual_sessions = (ses_server_actual.lookup(Label(command)), ses_client_actual.lookup(Label(command)))
             # type ref (always returns a session of type choice)
-            case("ref", "ref"):
-                # print(f'Referencing server session {ses_server_actual.name} and client session {ses_client_actual.name}...') # comment out to debug
+            case(Ref(), Ref()):
+                # Attempt to resolve references
                 found_server = protocol_info.lookup(ses_server_actual.name)
                 found_client = protocol_info.lookup(ses_client_actual.name)
-                return found_server, found_client
+
+                if found_server is None or found_client is None:
+                    raise SessionReferenceError("Session reference not found")
+                else:
+                    return found_server, found_client
             case _:
                 print ("Error: Unknown session type or sessions don't match") # not handled as exception but could be
                 return End(), End()
