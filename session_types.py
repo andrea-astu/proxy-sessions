@@ -118,7 +118,7 @@ class GlobalDict:
         else:
             return self.records[name]
 
-# --- define errors --------------------------------------------------------------------------------------
+# --- define errors snd exceptions  --------------------------------------------------------------------------------------
 
 # define schema validation fail error
 class SchemaValidationError(Exception):
@@ -126,3 +126,7 @@ class SchemaValidationError(Exception):
     def __init__(self, message="Schema validation failed"):
         self.message = message
         super().__init__(self.message)
+
+# for when looking up a choice session fails
+class SessionError(Exception):
+    pass

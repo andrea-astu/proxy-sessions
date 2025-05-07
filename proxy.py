@@ -87,7 +87,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                 found_client = protocol_info.lookup(ses_client_actual.name)
 
                 if found_server is None or found_client is None:
-                    raise SessionReferenceError("Session reference not found")
+                    raise SessionError("Session reference not found")
                 else:
                     return found_server, found_client
             case _:
@@ -111,19 +111,28 @@ async def define_protocols(ws_socket):
     session_as_str = json.loads(await ws_socket.recv()) # first protocol; minimum one has to be defined
     # define server session
     protocol_definition_server = message_into_session(session_as_str, "server") # send type to session conversion so it can be added to name
+    assert isinstance(protocol_definition_server, Def), "Expected a Def session from server" # to ensure only def sessions are given here
     protocol_info.add(protocol_definition_server) # add server protocol to global dictionary
     # define client session
     protocol_definition_client = message_into_session(session_as_str, "client") # send type to session conversion so it can be added to name
+    assert isinstance(protocol_definition_client, Def), "Expected a Def session from server" # to ensure session was properly mirrored as Def
     protocol_info.add(protocol_definition_client) # add client protocol to global dictionary
 
     # define more protocols
     while protocol_definition_server.kind != "end":
         session_as_str = json.loads(await ws_socket.recv())
         protocol_definition_server = message_into_session(session_as_str, "server")
-        if protocol_definition_server.kind != "end":
-            protocol_info.add(protocol_definition_server) # add server protocol to global dictionary
-            protocol_definition_client = message_into_session(session_as_str, "client") # make client session
-            protocol_info.add(protocol_definition_client) # add client protocol to global dictionary
+        match (protocol_definition_server):
+            case End():
+                break
+            case Def():
+                protocol_info.add(protocol_definition_server) # add server protocol to global dictionary
+                protocol_definition_client = message_into_session(session_as_str, "client") # make client session
+                assert isinstance(protocol_definition_client, Def), "Expected a Def session from server" # to ensure session was properly mirrored as Def
+                protocol_info.add(protocol_definition_client) # add client protocol to global dictionary
+            case _:
+                raise SessionError("Trying to define session that is not a Def")
+
     
     print(f"Registered protocols") # to track what proxy is doing at moment -> could be removed
 
