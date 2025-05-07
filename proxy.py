@@ -1,11 +1,11 @@
-from typing import Callable, Any
+from typing import Callable, Any, cast
 
 import re # used for parsing sessions
 
 # websockets imports
 import websockets
 import asyncio
-from websockets.legacy.server import WebSocketServerProtocol # for websockets server
+from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets server
 from websockets.legacy.client import WebSocketClientProtocol # for websockets client
 
 # to check payload types are ok
@@ -102,7 +102,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
     return End(), End() # only returned when both sessions are end sessions
     
 
-async def define_protocols(ws_socket:WebSocketServerProtocol):
+async def define_protocols(ws_socket:WebSocketClientProtocol):
     '''
     Receives strings from server that define protocols as Def sessions and adds them to the global
     dictionary until an End Session is received.
@@ -138,7 +138,7 @@ async def define_protocols(ws_socket:WebSocketServerProtocol):
     
     print(f"Registered protocols") # to track what proxy is doing at moment -> could be removed
 
-async def proxy_websockets(server:str, websocket_client:WebSocketServerProtocol, server_parser: Callable[..., Any], client_parser: Callable[..., Any]):
+async def proxy_websockets(server:WebSocketClientProtocol, websocket_client:WebSocketServerProtocol, server_parser: Callable[..., Any], client_parser: Callable[..., Any]):
     '''
     Manages the connection between the client and the server via sessions.
 
@@ -148,37 +148,37 @@ async def proxy_websockets(server:str, websocket_client:WebSocketServerProtocol,
             server_parser (Callable[..., Any]): function that changes the server message before sending it to the client
             client_parser (Callable[..., Any]): function that changes the client message before sending it to the server
     '''
-    async with websockets.connect(server) as server_ws:
-        try:
-            # define protocols
-            await define_protocols(server_ws)
-        
-            while True:
-                protocol_name = json.loads(await websocket_client.recv()) # client chooses protocol 
-                protocol_name = protocol_name[10:] # protocol message structure: "Protocol: ___" 
-                print(f'Executing protocol {protocol_name}...') # to track what proxy is doing at moment -> could be removed
-                # get both client and server sessions by referencing protocol
-                actual_ses_server, actual_ses_client = await handle_session(Ref(f"{protocol_name}_server"), Ref(f"{protocol_name}_client"),
-                                                                            server_ws, websocket_client, server_parser, client_parser) # choice session
-                # recursively carry out sessions until we get two "End" sessions back
-                while actual_ses_server.kind != "end" and actual_ses_client.kind != "end":
-                    await server_ws.send(json.dumps(protocol_name)) # always have to tell server which protocol is being used
-                    command = json.loads(await websocket_client.recv()) # action name
-                    assert isinstance(command, str), "Command should be string" # to ensure command is string
-                    print(f'Carrying out {command} action...') # to track what proxy is doing at moment -> could be removed
-                    await server_ws.send(json.dumps(command))
-                    actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, server_ws, #  carries out exchange dictated in that protocol's action 
-                                                                                websocket_client, server_parser, client_parser, command)
-        # handle ok and unexpected connections
-        except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError):
-            print("Client connection terminated. Closing connections ...")
-        except (SchemaValidationError) as e:
-            print(f"{e}. Restarting ...")
-        except Exception as e:
-            print(f"Unexpected error in proxy: {e}")
-        finally:
-            await server_ws.close()
-            await websocket_client.close()
+    # async with websockets.connect(server) as server_ws:
+    try:
+        # define protocols
+        await define_protocols(server)
+    
+        while True:
+            protocol_name = json.loads(await websocket_client.recv()) # client chooses protocol 
+            protocol_name = protocol_name[10:] # protocol message structure: "Protocol: ___" 
+            print(f'Executing protocol {protocol_name}...') # to track what proxy is doing at moment -> could be removed
+            # get both client and server sessions by referencing protocol
+            actual_ses_server, actual_ses_client = await handle_session(Ref(f"{protocol_name}_server"), Ref(f"{protocol_name}_client"),
+                                                                        server, websocket_client, server_parser, client_parser) # choice session
+            # recursively carry out sessions until we get two "End" sessions back
+            while actual_ses_server.kind != "end" and actual_ses_client.kind != "end":
+                await server.send(json.dumps(protocol_name)) # always have to tell server which protocol is being used
+                command = json.loads(await websocket_client.recv()) # action name
+                assert isinstance(command, str), "Command should be string" # to ensure command is string
+                print(f'Carrying out {command} action...') # to track what proxy is doing at moment -> could be removed
+                await server.send(json.dumps(command))
+                actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, server, #  carries out exchange dictated in that protocol's action 
+                                                                            websocket_client, server_parser, client_parser, command)
+    # handle ok and unexpected connections
+    except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError):
+        print("Client connection terminated. Closing connections ...")
+    except (SchemaValidationError) as e:
+        print(f"{e}. Restarting ...")
+    except Exception as e:
+        print(f"Unexpected error in proxy: {e}")
+    finally:
+        await server.close()
+        await websocket_client.close()
 
 #------------ Messages and Session Parsers -------------------------------------------------------------------
 
@@ -294,7 +294,7 @@ def session_into_message(session: Session) -> str:
         return f"Session: Ref, Name: {session.name}"
     
     elif isinstance(session, Choice):
-        alternatives = []
+        alternatives: list[str] = []
         for label_given, alt_session in session.alternatives.items():
             alt_str = (
                 f"(Label: {label_given.label}, Session: {session_into_message(alt_session)[9:]})"
@@ -332,16 +332,18 @@ async def start_proxy(proxy_address: int, server_address: str):
     stop_event = asyncio.Event()  # Create event to track when to stop
     
     async def handler(websocket:WebSocketServerProtocol):
-        try:
-            await proxy_websockets(server_address, websocket, server_parser_func, client_parser_func)
-        except Exception as e:
-            print(f"Error in handler: {e}")
-        finally:
-            print("Handler finished ...")
-            stop_event.set()  # Trigger stop when all clients are gone
+        async with websockets.connect(server_address) as server_ws:
+            try:
+                server_ws = cast(WebSocketClientProtocol, server_ws) # to correct type errors in websockets
+                await proxy_websockets(server_ws, websocket, server_parser_func, client_parser_func)
+            except Exception as e:
+                print(f"Error in handler: {e}")
+            finally:
+                print("Handler finished ...")
+                stop_event.set()  # Trigger stop when all clients are gone
 
     try:
-        server = await websockets.serve(handler, "localhost", proxy_address)
+        server = await serve(handler, "localhost", proxy_address)
         print("Proxy started, waiting for client...")
         await stop_event.wait()  # Exit when stop_event is set
         print("Closing connection with server...")
