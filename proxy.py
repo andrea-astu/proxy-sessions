@@ -349,7 +349,7 @@ async def start_proxy(proxy_address: int, server_address: str):
         print("Closing connection with server...")
         server.close()
         await server.wait_closed()  # Ensure server fully shuts down
-    except Exception as e:
+    except Exception:
         print(f"The proxy encountered an error. Please try again!")
 
 if __name__ == "__main__":

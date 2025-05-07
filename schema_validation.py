@@ -41,7 +41,7 @@ schema_any:JsonSchema = {
 # dynamically create the following schemas:
 
 # def schema
-def schema_def(name: str, payload_type) -> JsonSchema:
+def schema_def(name: str, payload_type:str) -> JsonSchema:
     return {
         "type": "object",
         "properties": {
@@ -59,7 +59,7 @@ def schema_array(type_array:str) -> JsonSchema:
     }
 
 # tuple schema
-def schema_tuple(type_list: list, supposed_length: int) -> JsonSchema:
+def schema_tuple(type_list: list[str], supposed_length: int) -> JsonSchema:
     return {
         "type": "array",
         "prefixItems": [{"type": t} for t in type_list],  # should be at the top level
@@ -77,7 +77,7 @@ def schema_union(type_array:list[str]) -> JsonSchema:
     }
 
 # record schema
-def schema_record(field_names: list, type_list: list) -> JsonSchema:
+def schema_record(field_names: list[str], type_list: list[str]) -> JsonSchema:
     return {
         "type": "object",
         "properties": {
