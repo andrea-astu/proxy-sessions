@@ -83,7 +83,7 @@ class End(Session):
         
 # global dictionary to keep info about protocols and sessions
 class GlobalDict:
-    def __init__(self, records: Dict[Label, Session]):
+    def __init__(self, records: Dict[str, Session]):
         self.dir = dir
         self.records = records
     
@@ -102,7 +102,7 @@ class GlobalDict:
             print(f"Defining protocol {def_ses.name}...") # to track what proxy is doing at moment -> could be removed
             self.records[def_ses.name] = def_ses.cont
     
-    def lookup(self, name: Label) -> Optional[Session]:
+    def lookup(self, name: str) -> Optional[Session]:
         '''
         Function that returns a protocol's session, usually in the form of a Choice session
 
@@ -114,7 +114,7 @@ class GlobalDict:
         '''
         # print(f"Looking for label: {name} in dictionary...") # comment out to debug
         if not name in self.records:
-            print(f"The session {name.label} does not exist.") # not handled as exception but could be
+            print(f"The protocol {name} does not exist.") # not handled as exception but could be
         else:
             return self.records[name]
 
