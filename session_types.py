@@ -123,7 +123,7 @@ class GlobalDict:
 # define schema validation fail error
 class SchemaValidationError(Exception):
     """Exception raised for errors in schema validation."""
-    def __init__(self, message="Schema validation failed"):
+    def __init__(self, message:str="Schema validation failed"):
         self.message = message
         super().__init__(self.message)
 

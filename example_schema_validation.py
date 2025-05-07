@@ -1,7 +1,8 @@
 import json
 from schema_validation import checkPayload
+from typing import Union, Any
 
-def run_test(example, session_type, expected_type):
+def run_test(example:Union[str, bool, list[Any], dict[str, Any]], session_type:str, expected_type:str):
     '''Runs a test case to show better which cases fail ans which succeed.'''
     try:
         result = checkPayload(example, session_type, expected_type)

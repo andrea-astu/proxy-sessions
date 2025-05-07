@@ -67,7 +67,7 @@ async def ws_server(websocket):
                 )
             )
 
-            protocol_b_session = protocol_b = Def(
+            protocol_b_session = Def(
             name="B",
             cont=Choice(
                 dir=Dir("send"),
@@ -101,7 +101,6 @@ async def ws_server(websocket):
 
             protocol_a_str = session_into_message(protocol_a_session)
             protocol_b_str = session_into_message(protocol_b_session)
-
 
             # send protocols to proxy
             print("Sending protocols to proxy...")
@@ -147,6 +146,9 @@ async def ws_server(websocket):
                             case "Quit":
                                 break
 
+                            case _:
+                                raise SessionError("This action does not exist in the curent protocol")
+
                     
                     case "B":
                         # choose option in protocol
@@ -170,6 +172,9 @@ async def ws_server(websocket):
                             case "Quit":
                                 break
 
+                            case _:
+                                raise SessionError("This action does not exist in the curent protocol")
+
 
                     case _:
                         print(f'This protocol is not recognized') # could be handled as an exception
@@ -185,7 +190,7 @@ async def ws_server(websocket):
         await websocket.close()
  
  
-async def main(port):
+async def main(port:int):
     '''
     Creates a WebSocket server that listens on localhost:7890.
     Whenever a client connects to the server, websockets.serve automatically calls ws_server, 

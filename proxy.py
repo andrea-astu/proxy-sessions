@@ -49,7 +49,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
         # returns End sessions if schema validation fails -> could be handled differently
         match (ses_server_actual, ses_client_actual):
             case (Single(), Single()):
-                match (ses_server_actual.dir, ses_client_actual.dir):
+                match (ses_server_actual.dir.dir, ses_client_actual.dir.dir):
                     # client sends payload to server
                     case ("recv", "send"):
                         payload_to_transport = client_parser(await client_socket.recv())
@@ -73,6 +73,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                             await client_socket.send(json.dumps("Error: schema validation failed")) # send error message to cleint
                             raise SchemaValidationError(f"Schema validation from client payload failed: {e}")
                     case _:
+                        print(ses_server_actual.dir, ses_client_actual.dir) # debug
                         print ("Error: The direction given to the Single session is not recognized or server and client do not have opposing directions.") # not handled as exception but could be
                         return End(), End()
                 actual_sessions = (ses_server_actual.cont, ses_client_actual.cont) # after a single session start next session
@@ -179,7 +180,7 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
 
 #------------ Messages and Session Parsers -------------------------------------------------------------------
 
-def message_into_session(ses_info:str, type_socket:str=None) -> Session:
+def message_into_session(ses_info:str, type_socket:str="") -> Session:
     '''
     Parses a string and transforms into into a session object.
 
@@ -191,6 +192,7 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
         Returns:
             The parsed session
     '''
+
     if ses_info.startswith("Session: "):
         ses_info = ses_info[9:] # split string to figure out which kind of session
         # print(f"Parsing session {ses_info}...") # comment out for debugging
@@ -213,12 +215,12 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
                     case _:
                         print("Error: invalid direction given") # not handled as exception but could be
                 #return single session and parse the cont str to make it a session too
-                session_changed = Single(dir=dir_given, payload=pay_given, cont=message_into_session(cont_ses, type_socket))
+                session_changed = Single(dir=Dir(dir_given), payload=pay_given, cont=message_into_session(cont_ses, type_socket))
             else:
-                print("Error: wrong syntax")
+                raise SessionError("Error parsing message into session: wrong syntax")
 
         # def session; uses type_socket parameter
-        if ses_info.startswith("Def"):
+        elif ses_info.startswith("Def"):
             pattern = r"Def, Name: (.*?), Cont: (.*)"
             match = re.match(pattern, ses_info)
             if match:
@@ -227,19 +229,19 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
                 # recursively parse choice sessions defined in protocol with "cont"
                 session_changed = Def(name=f"{name_given}_{type_socket}", cont=message_into_session(cont_ses, type_socket))
             else:
-                print("Error: wrong syntax") # not handled as exception but could be
+                raise SessionError("Error parsing message into session: wrong syntax")
 
         # ref session
-        if ses_info.startswith("Ref"):
+        elif ses_info.startswith("Ref"):
             if ses_info.startswith("Ref, Name: "):
                 name_given = ses_info[11:] # references protocol name
                 session_changed = Ref(name=f"{name_given}_{type_socket}")
             else:
-                print("Error: wrong syntax") # not handled as exception but could be
+                raise SessionError("Error parsing message into session: wrong syntax")
 
         # choice session
         # Idea: session would look like: Session: Choice, Dir: send, Alternatives: [{Label: Add, Session: Single, }]
-        if ses_info.startswith("Choice"):
+        elif ses_info.startswith("Choice"):
             pattern = r"Choice, Dir: (.*?), Alternatives: \[(.*)\]" # alternatives like that so it's dict
             match = re.match(pattern, ses_info)
             if match:
@@ -250,18 +252,19 @@ def message_into_session(ses_info:str, type_socket:str=None) -> Session:
                 for label, alt_session in alt_matches:
                     # Parse each alternative's session recursively
                     alternatives_parsed[Label(label.strip())] = message_into_session(f"Session: {alt_session.strip()}", type_socket)
-                session_changed = Choice(dir=dir_given, alternatives=alternatives_parsed)
+                session_changed = Choice(dir=Dir(dir_given), alternatives=alternatives_parsed)
             else:
-                print("Error: wrong syntax") # not handled as exception but could be
-
+                raise SessionError("Error parsing message into session: wrong syntax")
         # end session
-        if ses_info == "End":
+        elif ses_info == "End":
             session_changed = End()
+        # if no cases match
+        else:
+            raise SessionError("Error parsing session")
         # return resulting session
         return session_changed
-
     else:
-        print("Errror: Invalid request") # not handled as exception but could be
+        raise SessionError("Error parsing session")
 
 def session_into_message(session: Session) -> str:
     '''

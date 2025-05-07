@@ -62,6 +62,7 @@ def schema_tuple(type_list: list, supposed_length: int):
         "minItems": supposed_length,
         "maxItems": supposed_length
     }
+
 # union schema
 def schema_union(type_array:list[str]):
     return {
@@ -114,8 +115,8 @@ def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> 
             return try_schema(data, schema_bool, payload_in_ses)
         # array
         elif ('{ type: "array"' in payload_in_ses):
-            types = extract_types(payload_in_ses[26:-2]) # get the types in array according to session description
-            return try_schema(data, schema_array(types), payload_in_ses) # create array schema dynamically
+            type = extract_types(payload_in_ses[26:-2])[0] # get the type in array according to session description
+            return try_schema(data, schema_array(type), payload_in_ses) # create array schema dynamically
         # tuple
         elif ('{ type: "tuple"' in payload_in_ses):
             types = extract_types(payload_in_ses[26:].replace("[", "").replace("]", "")) # get the types in array according to session description
@@ -162,7 +163,7 @@ def try_schema(data, schema_to_check, expected) -> str | Exception:
     except jsonschema.ValidationError:
         raise jsonschema.ValidationError(f"Invalid data type! Expected type {expected} for {data}")
     except json.JSONDecodeError:
-        raise json.JSONDecodeError("Invalid JSON format!")
+        raise ValueError("Invalid JSON format!")
     
 # -- helper functions ---------------------------------------------------------------------------------
 def extract_types(payload_str:str) -> list:

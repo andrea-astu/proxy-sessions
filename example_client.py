@@ -3,7 +3,7 @@ import asyncio
 import json # to send and receive payloads
 import time # to keep console opened for a bit after code is finished
 
-def confirm_server_payload(message):
+def confirm_server_payload(message:str):
     '''
     Checks if there was an error with the schema validation according to the proxy and terminates the client if there is.
 
