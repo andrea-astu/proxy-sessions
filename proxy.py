@@ -1,10 +1,12 @@
-from typing import Callable
+from typing import Callable, Any
 
 import re # used for parsing sessions
 
 # websockets imports
 import websockets
 import asyncio
+from websockets.legacy.server import WebSocketServerProtocol # for websockets server
+from websockets.legacy.client import WebSocketClientProtocol # for websockets client
 
 # to check payload types are ok
 import schema_validation
@@ -21,8 +23,8 @@ from session_types import * # for session types, dictionary and schema error
         
 # ---- Client and server communications, session handlers -----------------------------------------------
 
-async def handle_session(ses_server: Session, ses_client: Session, server_socket, client_socket, 
-                         server_parser: Callable, client_parser: Callable, command:str="") -> tuple[Session, Session]:
+async def handle_session(ses_server: Session, ses_client: Session, server_socket: WebSocketClientProtocol, client_socket: WebSocketServerProtocol, 
+                         server_parser: Callable[..., Any], client_parser: Callable[..., Any], command:str="") -> tuple[Session, Session]:
     '''
     Performs actions depending on the given sessions and compares the server and client sessions are actually mirrored.
     Def sessions are not handled here because those define protocols and are instead handled in the define_protocols function.
@@ -30,10 +32,10 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
         Args:
             ses_server (Session): actual session the server is carrying out
             ses_client (Session): actual session the client is carrying out
-            server_socket: socket to communicate between proxy and server
-            client_socket: socket to communicate between proxy and client
-            server_parser (Callable): function that changes the server message before sending it to the client
-            client_parser (Callable): function that changes the client message before sending it to the server
+            server_socket (WebsocketClientProtocol): socket to communicate between proxy and server (proxy is "client" in this case)
+            client_socket (WebsocketServerProtocol): socket to communicate between proxy and client (proxy is "server" in this case)
+            server_parser (Callable[..., Any]): function that changes the server message before sending it to the client
+            client_parser (Callable[..., Any]): function that changes the client message before sending it to the server
             command (str): Optional argument that refrences the action to be carried out; used for choice sessions
 
         Returns:
@@ -100,14 +102,13 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
     return End(), End() # only returned when both sessions are end sessions
     
 
-async def define_protocols(ws_socket):
+async def define_protocols(ws_socket:WebSocketServerProtocol):
     '''
-    Receives strings from client or server that define protocols as Def sessions and adds them to the global
+    Receives strings from server that define protocols as Def sessions and adds them to the global
     dictionary until an End Session is received.
 
         Args:
-            ws_socket: client or server socket to receive and send information
-            type_socket (str): can either be "server" or "client" depending on which party is sending the protocols
+            ws_socket (WebsocketServerProtocol): socket of the server
     '''
     session_as_str = json.loads(await ws_socket.recv()) # first protocol; minimum one has to be defined
     # define server session
@@ -137,15 +138,15 @@ async def define_protocols(ws_socket):
     
     print(f"Registered protocols") # to track what proxy is doing at moment -> could be removed
 
-async def proxy_websockets(server:str, websocket_client, server_parser: Callable, client_parser: Callable):
+async def proxy_websockets(server:str, websocket_client:WebSocketServerProtocol, server_parser: Callable[..., Any], client_parser: Callable[..., Any]):
     '''
     Manages the connection between the client and the server via sessions.
 
         Args:
             server (str): uri of the server to establish a connection with it
-            websocket_client: client websocket to exchange information between it and the proxy
-            server_parser (Callable): function that changes the server message before sending it to the client
-            client_parser (Callable): function that changes the client message before sending it to the server
+            websocket_client (WebsocketServerProtocol): client websocket to exchange information between it and the proxy
+            server_parser (Callable[..., Any]): function that changes the server message before sending it to the client
+            client_parser (Callable[..., Any]): function that changes the client message before sending it to the server
     '''
     async with websockets.connect(server) as server_ws:
         try:
@@ -162,7 +163,8 @@ async def proxy_websockets(server:str, websocket_client, server_parser: Callable
                 # recursively carry out sessions until we get two "End" sessions back
                 while actual_ses_server.kind != "end" and actual_ses_client.kind != "end":
                     await server_ws.send(protocol_name) # always have to tell server which protocol is being used
-                    command = await websocket_client.recv() # action name
+                    command = json.loads(await websocket_client.recv()) # action name
+                    assert isinstance(command, str), "Command should be string" # to ensure command is string
                     print(f'Carrying out {command} action...') # to track what proxy is doing at moment -> could be removed
                     await server_ws.send(command)
                     actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, server_ws, #  carries out exchange dictated in that protocol's action 
@@ -252,6 +254,7 @@ def message_into_session(ses_info:str, type_socket:str="") -> Session:
                 for label, alt_session in alt_matches:
                     # Parse each alternative's session recursively
                     alternatives_parsed[Label(label.strip())] = message_into_session(f"Session: {alt_session.strip()}", type_socket)
+                alternatives_parsed:Dict[Label, Session] # in order for the creation of Choice to be ok
                 session_changed = Choice(dir=Dir(dir_given), alternatives=alternatives_parsed)
             else:
                 raise SessionError("Error parsing message into session: wrong syntax")
@@ -310,10 +313,10 @@ def session_into_message(session: Session) -> str:
 
 # DEFINE FUNCTIONS HERE!
 # For now they're meant to not change the messages at all
-def server_parser_func(message):
+def server_parser_func(message:Any):
     return message
 
-def client_parser_func(message):
+def client_parser_func(message:Any):
     return message
 
 # ------------- Initialize Proxy  ----------------------------------------------------------------------
@@ -328,7 +331,7 @@ async def start_proxy(proxy_address: int, server_address: str):
     '''
     stop_event = asyncio.Event()  # Create event to track when to stop
     
-    async def handler(websocket):
+    async def handler(websocket:WebSocketServerProtocol):
         try:
             await proxy_websockets(server_address, websocket, server_parser_func, client_parser_func)
         except Exception as e:

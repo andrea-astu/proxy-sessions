@@ -5,16 +5,18 @@ import argparse
 
 # in order to write sessions and convert them to or from strings
 from session_types import *
-from proxy import message_into_session, session_into_message # to parse
+from proxy import session_into_message # to convert session to str
 
+from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets
 
-async def ws_server(websocket):
+async def ws_server(websocket:WebSocketServerProtocol):
     '''
     Main function of server where protocols are defined and information is sent back and forth.
 
     Args:
         websocket: Server's websocket (will receive and send information) provided by websockets.serve function.
     '''
+    
     print("Connection succesful...")
     try:
         while True:
@@ -200,7 +202,7 @@ async def main(port:int):
         port: The port from which server is reachable.
     '''
     print(f"Using port {port}")
-    async with websockets.serve(ws_server, "localhost", port): # the port can be changed depending on preference
+    async with serve(ws_server, "localhost", port): # the port can be changed depending on preference
         await asyncio.Future()  # run forever because servers must always be active
  
 if __name__ == "__main__":

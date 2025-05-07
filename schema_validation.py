@@ -1,6 +1,7 @@
 import json
 import jsonschema
 import re # to parse payload types for tuple and union
+from typing import Any
 
 # ---------------- define json schemas ----------------------------------------------------------------
 # these schemas are like the "templates" the payload types are compared against
@@ -87,12 +88,12 @@ def schema_record(field_names: list, type_list: list):
 # --- functions for checking -----------------------------------------------------------------------------------
 
 # any is considered any of the other types
-def checkPayload(payload_sender, payload_in_ses: str, expected_payload: str) -> str | Exception:
+def checkPayload(payload_sender:Any, payload_in_ses: str, expected_payload: str) -> str | Exception:
     '''
     Checks the actual payload is of the type expected by both the server and the client.
 
     Args:
-        payload_sender: payload that was sent (actual object)
+        payload_sender (Any): payload that was sent (actual object); it can be anything as a JSON object
         payload_in_ses (str): the payload type the sender is supposed to send according to the session
         expected_payload (str): is the payload type the receiver is expecting according to session
 
