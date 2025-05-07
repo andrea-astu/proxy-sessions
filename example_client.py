@@ -35,7 +35,7 @@ async def ws_client():
 
             # Greeting procedure
             name = input("Hi! What is your name?: ")
-            await ws.send("Protocol: A") # choosing protocol
+            await ws.send(json.dumps("Protocol: A")) # choosing protocol
             await ws.send(json.dumps("Greeting")) # choosing "action" (session in a protocol)
             await ws.send(json.dumps(name)) # sending info
             nickname = confirm_server_payload(json.loads(await ws.recv()))

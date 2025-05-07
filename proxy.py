@@ -154,7 +154,7 @@ async def proxy_websockets(server:str, websocket_client:WebSocketServerProtocol,
             await define_protocols(server_ws)
         
             while True:
-                protocol_name = await websocket_client.recv() # client chooses protocol 
+                protocol_name = json.loads(await websocket_client.recv()) # client chooses protocol 
                 protocol_name = protocol_name[10:] # protocol message structure: "Protocol: ___" 
                 print(f'Executing protocol {protocol_name}...') # to track what proxy is doing at moment -> could be removed
                 # get both client and server sessions by referencing protocol
@@ -162,11 +162,11 @@ async def proxy_websockets(server:str, websocket_client:WebSocketServerProtocol,
                                                                             server_ws, websocket_client, server_parser, client_parser) # choice session
                 # recursively carry out sessions until we get two "End" sessions back
                 while actual_ses_server.kind != "end" and actual_ses_client.kind != "end":
-                    await server_ws.send(protocol_name) # always have to tell server which protocol is being used
+                    await server_ws.send(json.dumps(protocol_name)) # always have to tell server which protocol is being used
                     command = json.loads(await websocket_client.recv()) # action name
                     assert isinstance(command, str), "Command should be string" # to ensure command is string
                     print(f'Carrying out {command} action...') # to track what proxy is doing at moment -> could be removed
-                    await server_ws.send(command)
+                    await server_ws.send(json.dumps(command))
                     actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, server_ws, #  carries out exchange dictated in that protocol's action 
                                                                                 websocket_client, server_parser, client_parser, command)
         # handle ok and unexpected connections

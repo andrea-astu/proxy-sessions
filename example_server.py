@@ -112,14 +112,14 @@ async def ws_server(websocket:WebSocketServerProtocol):
 
             while True:
                 # receive protocol info
-                protocol = await websocket.recv()
+                protocol = json.loads(await websocket.recv())
                 print(f'Got protocol {protocol}')
 
                 # process previously defined prtocols
                 match protocol:
                     case "A":
                         # choose option in protocol
-                        action = await websocket.recv()
+                        action = json.loads(await websocket.recv())
                         # action refers to a specific session inside a protocol
                         print(f'Doing action: {action}')
 
@@ -154,7 +154,7 @@ async def ws_server(websocket:WebSocketServerProtocol):
                     
                     case "B":
                         # choose option in protocol
-                        action = await websocket.recv()
+                        action = json.loads(await websocket.recv())
                         print(f'Doing action {action}')
 
                         match action:
