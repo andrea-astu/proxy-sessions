@@ -1,31 +1,34 @@
 import json
 import jsonschema
 import re # to parse payload types for tuple and union
-from typing import Any
+from typing import Any, Dict
 
 # ---------------- define json schemas ----------------------------------------------------------------
 # these schemas are like the "templates" the payload types are compared against
 
+# define type of a JSON Schema
+JsonSchema = Dict[str, Any]
+
 # num schema
-schema_number = {
+schema_number:JsonSchema = {
 "type": "number"
 }
 
 # string schema
-schema_string = {"type": "string"}
+schema_string:JsonSchema = {"type": "string"}
 
 # bool schema
-schema_bool = {
+schema_bool:JsonSchema = {
 "type": "boolean"
 }
 
 # null schema
-schema_null = {
+schema_null:JsonSchema = {
 "type": "null"
 }
 
 # any schema
-schema_any = {
+schema_any:JsonSchema = {
     "oneOf": [
         {"type": "null"},
         {"type": "string"},
@@ -38,7 +41,7 @@ schema_any = {
 # dynamically create the following schemas:
 
 # def schema
-def schema_def(name: str, payload_type):
+def schema_def(name: str, payload_type) -> JsonSchema:
     return {
         "type": "object",
         "properties": {
@@ -49,14 +52,14 @@ def schema_def(name: str, payload_type):
     }
 
 # array schema
-def schema_array(type_array:str):
+def schema_array(type_array:str) -> JsonSchema:
    return {
         "type": "array",
         "items": {"type": type_array}
     }
 
 # tuple schema
-def schema_tuple(type_list: list, supposed_length: int):
+def schema_tuple(type_list: list, supposed_length: int) -> JsonSchema:
     return {
         "type": "array",
         "prefixItems": [{"type": t} for t in type_list],  # should be at the top level
@@ -65,7 +68,7 @@ def schema_tuple(type_list: list, supposed_length: int):
     }
 
 # union schema
-def schema_union(type_array:list[str]):
+def schema_union(type_array:list[str]) -> JsonSchema:
     return {
         "type": "array",
         "items": {
@@ -74,7 +77,7 @@ def schema_union(type_array:list[str]):
     }
 
 # record schema
-def schema_record(field_names: list, type_list: list):
+def schema_record(field_names: list, type_list: list) -> JsonSchema:
     return {
         "type": "object",
         "properties": {
@@ -130,12 +133,12 @@ def checkPayload(payload_sender:Any, payload_in_ses: str, expected_payload: str)
         # def
         elif ('{ type: "def"' in payload_in_ses):
             # extract payload type with the usual format to check it in schema
-            def_part, name_part, payload_type = payload_in_ses.split(", ")
+            payload_type = payload_in_ses.split(", ")[2]
             payload_type = payload_type.replace('payload: { type: "', '')
             payload_type = payload_type.replace('" } }', '')
 
             # checking actual_name and passing it on to the dynamic schema
-            actual_name, actual_payload = list(data.items())[0]  # def object is like dict!
+            actual_name = list(data.items())[0][0]  # def object is like dict!
 
             return try_schema(data, schema_def(actual_name, payload_type), payload_in_ses)
         # record
@@ -146,7 +149,7 @@ def checkPayload(payload_sender:Any, payload_in_ses: str, expected_payload: str)
         else:
             raise TypeError("Error! payload is not of a recognized type")
 
-def try_schema(data, schema_to_check, expected) -> str | Exception:
+def try_schema(data: Any, schema_to_check: JsonSchema, expected: str) -> str | Exception:
     '''
     Compares the payload against a json schema to see if it matches it's supposed type.
 
@@ -167,7 +170,7 @@ def try_schema(data, schema_to_check, expected) -> str | Exception:
         raise ValueError("Invalid JSON format!")
     
 # -- helper functions ---------------------------------------------------------------------------------
-def extract_types(payload_str:str) -> list:
+def extract_types(payload_str:str) -> list[str]:
     '''
     Parses the string that describes a session of type tuple in order to extract the types of the tuple elements.
 
