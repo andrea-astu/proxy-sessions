@@ -1,5 +1,5 @@
-from session_types import *
-from proxy import session_into_message
+from session_logic.session_types import *
+from session_logic.parsers import session_into_message
 
 protocol_a_str = (
                 'Session: Def, Name: A, Cont: Session: Choice, Dir: send, Alternatives: '

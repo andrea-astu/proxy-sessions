@@ -1,5 +1,5 @@
 import json
-from schema_validation import checkPayload
+from session_logic.schema_validation import checkPayload
 from typing import Union, Any
 
 def run_test(example:Union[str, bool, list[Any], dict[str, Any]], session_type:str, expected_type:str):

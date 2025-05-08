@@ -4,8 +4,8 @@ import json
 import argparse
 
 # in order to write sessions and convert them to or from strings
-from session_types import *
-from proxy import session_into_message # to convert session to str
+from session_logic.session_types import *
+from session_logic.parsers import session_into_message # to convert session to str
 
 from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets
 

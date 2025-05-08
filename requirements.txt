@@ -2,3 +2,4 @@ The following pip modules need to be installed:
 
 websockets
 jsonschema
+pytest
