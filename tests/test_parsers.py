@@ -7,8 +7,6 @@ import pytest
 from session_logic.parsers import message_into_session, session_into_message
 from session_logic.session_types import *
 
-import difflib
-
 # -- Define examples for testing ------------------------------------------------------------------------
 protocol_a_str = (
                 'Session: Def, Name: A, Cont: Session: Choice, Dir: send, Alternatives: '
@@ -124,52 +122,39 @@ def test_message_into_session_protocol_a():
     assert parsed == protocol_a_session
 
 def test_session_into_message_protocol_a():
-    serialized = session_into_message(protocol_a_session)
-    assert serialized == protocol_a_str
+    as_string = session_into_message(protocol_a_session)
+    assert as_string == protocol_a_str
 
 def test_message_into_session_protocol_b():
     parsed = message_into_session(protocol_b_str)
     assert parsed == protocol_b_session
 
 def test_session_into_message_protocol_b():
-    serialized = session_into_message(protocol_b_session)
-    assert serialized == protocol_b_str
+    as_string = session_into_message(protocol_b_session)
+    assert as_string == protocol_b_str
 
 # -- Failing tests -----------------------------------------------------------------------------------
 
 def test_invalid_prefix():
     with pytest.raises(SessionError, match="Error parsing session"):
-        message_into_session("InvalidPrefix: Single, Dir: send, Payload: ..., Cont: End")
+        message_into_session('InvalidPrefix: Single, Dir: send, Payload: { type: "number" }, Cont: End')
 
 def test_invalid_single_format():
     with pytest.raises(SessionError, match="Error parsing message into session: wrong syntax"):
-        message_into_session("Session: Single, Dir: send Payload: ..., Cont: End")  # Missing commas
+        message_into_session('Session: Single, Dir: send Payload: { type: "number" }, Cont: End')  # Missing commas
 
 def test_invalid_def_format():
     with pytest.raises(SessionError, match="Error parsing message into session: wrong syntax"):
-        message_into_session("Session: Def, Name: ProtocolOnly")  # Missing cont
+        message_into_session('Session: Def, Name: ProtocolOnly')  # Missing cont
 
 def test_invalid_ref_format():
     with pytest.raises(SessionError, match="Error parsing message into session: wrong syntax"):
-        message_into_session("Session: Ref ProtocolName")  # Wrong format
+        message_into_session('Session: Ref ProtocolName')  # Wrong format
 
 def test_invalid_choice_format():
     with pytest.raises(SessionError, match="Error parsing message into session: wrong syntax"):
-        message_into_session("Session: Choice, Dir: send, Alts: [wrong]")  # Misspelled "Alternatives"
+        message_into_session('Session: Choice, Dir: send, Alts: [wrong]')  # Misspelled "Alternatives"
 
 def test_missing_session_prefix():
     with pytest.raises(SessionError, match="Error parsing session"):
-        message_into_session("Choice, Dir: send, Alternatives: []")  # Missing "Session: " prefix
-
-# print(session_into_message(protocol_a_session))
-# print(session_into_message(protocol_b_session))
-
-def show_string_diff(expected: str, actual: str):
-    print("=== STRING DIFFERENCE ===")
-    diff = difflib.ndiff(expected.splitlines(), actual.splitlines())
-    for line in diff:
-        if line.startswith("- ") or line.startswith("+ ") or line.startswith("? "):
-            print(line)
-
-# Example usage
-show_string_diff(protocol_a_str, session_into_message(protocol_a_session))
+        message_into_session('Choice, Dir: send, Alternatives: []')  # Missing "Session: " prefix
