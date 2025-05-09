@@ -42,6 +42,16 @@ schema_any:JsonSchema = {
 
 # def schema
 def schema_def(name: str, payload_type:str) -> JsonSchema:
+    '''
+    Function that returns a JSONSchema based on a a payload of type def.
+
+        Args:
+            name (str): how it will be defined
+            payload_type (str): payload that comes with definition
+
+        Returns:
+            A JSON schema that matches payload type def.
+    '''
     return {
         "type": "object",
         "properties": {
@@ -53,6 +63,16 @@ def schema_def(name: str, payload_type:str) -> JsonSchema:
 
 # array schema
 def schema_array(type_array:str) -> JsonSchema:
+   '''
+    Function that returns a JSONSchema based on a a payload of type array.
+    An array has a variable length but all elemnets should be of same type.
+
+        Args:
+            type_array (str): str to define type of payload inside array so it can later be checked by a schema.
+
+        Returns:
+            A JSON schema that matches payload type array.
+    '''
    return {
         "type": "array",
         "items": {"type": type_array}
@@ -60,6 +80,17 @@ def schema_array(type_array:str) -> JsonSchema:
 
 # tuple schema
 def schema_tuple(type_list: list[str], supposed_length: int) -> JsonSchema:
+    '''
+    Function that returns a JSONSchema based on a a payload of type tuple.
+    A tuple is of a fixed length but its elements can be of different types
+
+        Args:
+            type_list (list[str]): list (in order) of what type ach element in tuple is.
+            suppsoed_length (int): fixed length of tuple
+
+        Returns:
+            A JSON schema that matches payload type tuple.
+    '''
     return {
         "type": "array",
         "prefixItems": [{"type": t} for t in type_list],  # should be at the top level
@@ -69,6 +100,16 @@ def schema_tuple(type_list: list[str], supposed_length: int) -> JsonSchema:
 
 # union schema
 def schema_union(type_array:list[str]) -> JsonSchema:
+    '''
+    Function that returns a JSONSchema based on a a payload of type union.
+    A union is an array but it's elements can be of any type listed beforehand.
+
+        Args:
+            type_array (list[str]): all possible types of elements in union.
+
+        Returns:
+            A JSON schema that matches payload type union.
+    '''
     return {
         "type": "array",
         "items": {
@@ -78,6 +119,17 @@ def schema_union(type_array:list[str]) -> JsonSchema:
 
 # record schema
 def schema_record(field_names: list[str], type_list: list[str]) -> JsonSchema:
+    '''
+    Function that returns a JSONSchema based on a a payload of type record.
+    A record is kind of like a python dictionary that keeps payloads and gives them a name as "key".
+
+        Args:
+            field_names (list[str]): names of each element in dictionary, in order
+            type_list (list[str]): payload type of each element in dictionary, in order
+
+        Returns:
+            A JSON schema that matches payload type record.
+    '''
     return {
         "type": "object",
         "properties": {
