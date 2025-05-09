@@ -88,17 +88,19 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
             # type choice (choose a session inside a protocol)
             case(Choice(), Choice()):
                 # print(f'Looking up action: {command}...') # comment out to debug
-                actual_sessions = (ses_server_actual.lookup(Label(command)), ses_client_actual.lookup(Label(command)))
+                try:
+                    actual_sessions = (ses_server_actual.lookup(Label(command)), ses_client_actual.lookup(Label(command)))
+                except Exception as e:
+                    print(e)            
             # type ref (always returns a session of type choice)
             case(Ref(), Ref()):
                 # Attempt to resolve references
-                found_server = protocol_info.lookup(ses_server_actual.name)
-                found_client = protocol_info.lookup(ses_client_actual.name)
-
-                if found_server is None or found_client is None:
-                    raise SessionError("Session reference not found")
-                else:
+                try:
+                    found_server = protocol_info.lookup(ses_server_actual.name)
+                    found_client = protocol_info.lookup(ses_client_actual.name)
                     return found_server, found_client
+                except Exception as e:
+                    print(e)
             case _:
                 print ("Error: Unknown session type or sessions don't match") # not handled as exception but could be
                 return End(), End()

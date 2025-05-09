@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Dict
 from dataclasses import dataclass # so that @dataclass(frozen=true) can be used
 
 # -- define session components "dir" and "label" --------------------------------------------------------------------------
@@ -44,13 +44,15 @@ class Choice(Session):
         Args:
             name (Label): what the session is called
             new_ses (Session): actual session to be added
+        
+        Returns nothing if succesful.
         '''
         if name in self.alternatives:
-            print(f"Error: defining existing session {name.label}") # not handled as exception but could be
+            raise ErrorInSessionDicts("defining existing session", name.label, "Choice session")
         else:
             self.alternatives[name] = new_ses
     
-    def lookup(self, name: Label) -> Optional[Session]:
+    def lookup(self, name: Label) -> Session:
         '''
         Looks for session in alternatives (the choice session dictionary)
 
@@ -58,10 +60,10 @@ class Choice(Session):
             name (Label): name of session
         
         Returns:
-            A session if there is one in the dictionary and nothing otherwise
+            A session if there is one in the dictionary.
         '''
         if not name in self.alternatives:
-            print(f"The session {name.label} does not exist.") # not handled as exception but could be
+            raise ErrorInSessionDicts("lookup", name.label, context="Choice session")
         else:
             return self.alternatives[name]
 
@@ -92,22 +94,22 @@ class GlobalDict:
         self.dir = dir
         self.records = records
     
-    def add(self, def_ses:Def) -> None:
+    def add(self, def_ses:Def):
         '''
         Adds a new protocol to the global dicitonary of protocols.
 
             Args:
                 def_ses (Def): def session that works as protocol
             
-        Doesn't return anything.
+        Returns nothing if it works.
         '''
         if def_ses.name in self.records:
-            print(f"The session {def_ses.name} already exists. Please define a new one.") # not handled as exception but could be
+            raise ErrorInSessionDicts("add protcol", def_ses.name, context="GlobalDict")
         else:
             print(f"Defining protocol {def_ses.name}...") # to track what proxy is doing at moment -> could be removed
             self.records[def_ses.name] = def_ses.cont
     
-    def lookup(self, name: str) -> Optional[Session]:
+    def lookup(self, name: str) -> Session:
         '''
         Function that returns a protocol's session, usually in the form of a Choice session
 
@@ -115,23 +117,27 @@ class GlobalDict:
                 name (Label): name of the protocol
 
             Returns:
-                A protocol's session if found in the global dictionary or nothing otherwise
+                A protocol's session if found in the global dictionary or nothing otherwise.
         '''
         # print(f"Looking for label: {name} in dictionary...") # comment out to debug
         if not name in self.records:
-            print(f"The protocol {name} does not exist.") # not handled as exception but could be
+            raise ErrorInSessionDicts("Lookup", name, "GlobalDict") # not handled as exception but could be
         else:
             return self.records[name]
 
 # --- define errors snd exceptions  --------------------------------------------------------------------------------------
 
-# define schema validation fail error
 class SchemaValidationError(Exception):
     """Exception raised for errors in schema validation."""
     def __init__(self, message:str="Schema validation failed"):
         self.message = message
         super().__init__(self.message)
 
-# for when looking up a choice session fails
+class ErrorInSessionDicts(Exception):
+    """Raised when a lookup or addition for a label or session reference fails."""
+    def __init__(self, function:str, name: str, context: str = "Unknown"):
+        super().__init__(f"{function} failed for '{name}' in {context}")
+
+# for general errors in session
 class SessionError(Exception):
     pass
