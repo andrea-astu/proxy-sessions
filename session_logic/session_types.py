@@ -22,6 +22,7 @@ class Session:
     def __init__(self, kind: str):
         self.kind = kind
 
+@dataclass
 class Single(Session):
     def __init__(self, dir: Dir, payload:str, cont: Session):
         super().__init__("single")
@@ -29,6 +30,7 @@ class Single(Session):
         self.payload = payload
         self.cont = cont
 
+@dataclass
 class Choice(Session):
     def __init__(self, dir: Dir, alternatives: Dict[Label, Session]):
         super().__init__("choice")
@@ -63,17 +65,20 @@ class Choice(Session):
         else:
             return self.alternatives[name]
 
+@dataclass
 class Def(Session):
     def __init__(self, name: str, cont: Session):
         super().__init__("def")
         self.name = name
         self.cont = cont
 
+@dataclass
 class Ref(Session):
     def __init__(self, name: str):
         super().__init__("ref")
         self.name = name
 
+@dataclass
 class End(Session):
     def __init__(self):
         super().__init__("end")

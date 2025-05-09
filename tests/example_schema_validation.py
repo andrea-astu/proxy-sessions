@@ -1,3 +1,8 @@
+# to be able to use modules from other files
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 import json
 from session_logic.schema_validation import checkPayload
 from typing import Union, Any

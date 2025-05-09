@@ -1,4 +1,9 @@
-from session_types import *
+# to be able to use modules from other files
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from session_logic.session_types import *
 import re # for parsing sessions
 from typing import Any # for type definition
 

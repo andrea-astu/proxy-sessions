@@ -1,8 +1,16 @@
+# to be able to use modules from other files
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 import json
-import pytest
+
+import pytest # for tests
+
 from session_logic.schema_validation import checkPayload
 
-# Define JSON test data
+# -- Define JSON test data ----------------------------------------------------------------------------------------------------------------------
+
 example_string = json.dumps("hello")
 example_bool = json.dumps(True)
 example_null = json.dumps(None)
@@ -13,7 +21,7 @@ example_tuple = json.dumps([1, 2, "and", False])
 example_def = json.dumps({"name": 7})
 example_record = json.dumps({"age": 25, "name": "Alice", "isAdmin": True})
 
-# ---------------------- Valid tests ----------------------
+# ---------------------- Valid tests -----------------------------------------------------------------------------------------------------------
 
 def test_string():
     assert checkPayload(example_string, '{ type: "string" }', '{ type: "string" }') == "Valid payload type"
