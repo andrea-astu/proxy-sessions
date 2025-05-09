@@ -10,7 +10,7 @@
 
 ## How to use
 1. Start your server.
-2. **Start proxy**
+2. **Start proxy**  
     Open a command prompt in the project folder and run
 
    ```
@@ -24,21 +24,21 @@
 Note: you can also run the proxy without flags and the default ports will be used, which are 7890 for a server and 7891 for the proxy.
 
 ## Use example to test out proxy
-1. **Start server**
+1. **Start server**  
    Open a command prompt in the example_client_server folder and run
    
    ```
    python example_server.py
    ```
    
-3. **Start proxy**
+3. **Start proxy**  
     Open a command prompt in the project folder and run
    
    ```
    python proxy.py
    ```
    
-5. **Start client**
+5. **Start client**  
    Open a command prompt in the example_client_server folder and run
     ```
    python example_client.py
