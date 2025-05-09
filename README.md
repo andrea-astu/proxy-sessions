@@ -12,26 +12,40 @@
 1. Start your server.
 2. **Start proxy**
     Open a command prompt in the project folder and run
-   <pre> ```bash# python proxy.py -s=SERVER_PORT -pr=PROXY_PORT ``` </pre>
+
+   ```
+   python proxy.py -s=SERVER_PORT -pr=PROXY_PORT
+   ```
+   
    and replace SERVER_PORT and PROXY_PORT with the desired port numbers.
-3. Start your client and make sure it's connecting to the given proxy port.
-4. Should your client code end, you can keep the server and proxy open and connect a new client; just keep in mind the server and proxy ports will remain the same.
+4. Start your client and make sure it's connecting to the given proxy port.
+5. Should your client code end, you can keep the server and proxy open and connect a new client; just keep in mind the server and proxy ports will remain the same.
 
 Note: you can also run the proxy without flags and the default ports will be used, which are 7890 for a server and 7891 for the proxy.
 
 ## Use example to test out proxy
 1. **Start server**
    Open a command prompt in the example_client_server folder and run
-   <pre> ```bash# python example_server.py ``` </pre>
-2. **Start proxy**
+   
+   ```
+   python example_server.py
+   ```
+   
+3. **Start proxy**
     Open a command prompt in the project folder and run
-   <pre> ```bash# python proxy.py ``` </pre>
-3. **Start client**
+   
+   ```
+   python proxy.py
+   ```
+   
+5. **Start client**
    Open a command prompt in the example_client_server folder and run
-   <pre> ```bash# python example_client.py ``` </pre>
+    ```
+   python example_client.py
+    ```
 
-4. Follow the client instructions in the console.
-5. Once the client code is finished, you can repeat step 3 to carry it put again without closing the server or proxy if you so wish.
+7. Follow the client instructions in the console.
+8. Once the client code is finished, you can repeat step 3 to carry it put again without closing the server or proxy if you so wish.
 
 **NOTE:** you can see what proxy and server are handling by looking at the corresponding terminals.
 
