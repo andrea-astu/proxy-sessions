@@ -1,30 +1,39 @@
 # A proxy for session-typed communication.
 
-## Files
-
+## Files and folders:
 - **proxy_with_middle:** python code with all proxy functionalities
-- **example_server and example_client**
-- **schema_validation:** python code that checks the json payload the client/server sends and compares it with type defined in client and server protocols
-- **example_schema_validation:** tests that show examples of sessions against python payloads changed to JSON formats
+- **example_server and example_client in example_cleint_server folder:** to try out the proxy with previously created client and server
+- **schema_validation in session logic:** python code that checks the json payload the client/server sends and compares it with type defined in client and server protocols
+- **session_types in session_logic:** models the Session types and their functionalities as well as exceptions.
+- **parsers:** to transform a session into a string or vice-versa and to alter message sent from server to client or client to server.
+- **tests:** all files in this folder can be carried out with pytest to make sure certain functions are working as they should.
 
 ## How to use
+1. Start your server.
+2. **Start proxy**
+    Open a command prompt in the project folder and run
+   <pre> ```python proxy.py -s=SERVER_PORT -pr=PROXY_PORT ``` </pre>
+   and replace SERVER_PORT and PROXY_PORT with the desired port numbers.
+3. Start your client and make sure it's connecting to the given proxy port.
+4. Should your client code end, you can keep the server and proxy open and connect a new client; just keep in mind the server and proxy ports will remain the same.
 
-1. Make sure the server is opened.
-2. Open the proxy. In the proxy terminal, type "default" if you want to use the default ports for the proxy (7891) and the server (7890, which is translated into the ws://127.0.0.1:7890 URI). If not, type the desired ports/uris for them.
-3. Open the client and interact with it.
-
+Note: you can also run the proxy without flags and the default ports will be used, which are 7890 for a server and 7891 for the proxy.
 
 ## Use example to test out proxy
+1. **Start server**
+   Open a command prompt in the example_client_server folder and run
+   <pre> ```python example_server.py ``` </pre>
+2. **Start proxy**
+    Open a command prompt in the project folder and run
+   <pre> ```python proxy.py ``` </pre>
+3. **Start client**
+   Open a command prompt in the example_client_server folder and run
+   <pre> ```python example_client.py ``` </pre>
 
-1. First open the server, then the proxy.
+4. Follow the client instructions in the console.
+5. Once the client code is finished, you can repeat step 3 to carry it put again without closing the server or proxy if you so wish.
 
-2. In the proxy terminal, type "default" for both the proxy and server ports.
-
-3. Open the client.
-
-4. The example server and client will run through the proxy. Interact with the client to test it out.
-
-Note: you can see what proxy and server are handling by looking at the corresponding terminals.
+**NOTE:** you can see what proxy and server are handling by looking at the corresponding terminals.
 
 ## Session syntax and payloads
 
@@ -92,6 +101,6 @@ For more examples, see the server and client example codes to see how sessions a
 
 ## Parser
 
-In proxy_with_middle, there are two empty functions that can alter the payload sent from server to client (server_parser_func) and from client to server (client_parser_func). Feel free to write some code inside these functions if you want the proxy to regulate the messages sent between client and server.
+In session_logic/parsers.py, there are two empty functions that can alter the payload sent from server to client (server_parser_func) and from client to server (client_parser_func). Feel free to write some code inside these functions if you want the proxy to regulate the messages sent between client and server.
 
 **Note**: the functions accept a parameter ("message") that represents the payload; make sure they return the same type of payload as the received message.
