@@ -2,7 +2,7 @@
 
 ## Files and folders:
 - **proxy_with_middle:** python code with all proxy functionalities
-- **example_server and example_client in example_cleint_server folder:** to try out the proxy with previously created client and server
+- **example_server and example_client in example_client_server folder:** to try out the proxy with previously created client and server
 - **schema_validation in session logic:** python code that checks the json payload the client/server sends and compares it with type defined in client and server protocols
 - **session_types in session_logic:** models the Session types and their functionalities as well as exceptions.
 - **parsers in session_logic:** to transform a session into a string or vice-versa and to alter message sent from server to client or client to server.
