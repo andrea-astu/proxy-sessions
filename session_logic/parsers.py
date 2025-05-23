@@ -5,9 +5,21 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from session_logic.session_types import *
 import re # for parsing sessions
-from typing import Any # for type definition
+from typing import Any, Literal, Union, cast # for type definition
 
-# Messages and Session Parsers
+import json
+
+# -- Define functions that enable proxy to change payload ------------------------------
+
+# For now they're meant to not change the messages at all
+def server_parser_func(message:Any):
+    return message
+
+def client_parser_func(message:Any):
+    return message
+
+
+#-- String <--> Session Parsers --------------------------------------------------------
 
 def message_into_session(ses_info:str, type_socket:str="") -> Session:
     '''
@@ -138,10 +150,77 @@ def session_into_message(session: Session) -> str:
         raise ValueError("Unknown session type")
 
 
-# DEFINE FUNCTIONS HERE!
-# For now they're meant to not change the messages at all
-def server_parser_func(message:Any):
-    return message
+#-- Create payload string easier --------------------------------------------------------
 
-def client_parser_func(message:Any):
-    return message
+# Literals for allowed parameter strings
+BasicTypes = Literal["boolean", "string", "none", "number"] # does it have to be all upper case? 
+AllTypes = Literal["boolean", "string", "none", "number", "array", "tuple", "union", "def", "record"]
+PayloadTypes = Union[AllTypes, list[AllTypes], None]
+
+def payload_to_string_v1(type_str:AllTypes, payload:PayloadTypes=None) -> str:
+    # separate parameters of array, tuple, etc.??
+    match type_str:
+        case "boolean":
+            return '{ type: "bool" }'
+        case "string":
+            return '{ type: "string" }'
+        case "none":
+            return '{ type: "null" }'
+        case "number":
+            return '{ type: "number" }'
+        case "array":
+            if isinstance(payload, str): # checking array only accepts ONE payload type
+                return f'{{ type: "array", payload: {payload_to_string_v1(type_str=payload)} }}'
+            else:
+                return "Array payload can only be of one type" # make return exception or something
+        case ("tuple" | "union" | "record"):
+            # don't need a length because list of types gives us length alraedy
+            if isinstance(payload, list):
+                elements = [payload_to_string_v1(i) for i in payload]
+                return f'{{ type: "{type}", payload: [ ' + ", ".join(elements) + ' ] }}'
+            else:
+                return "Payload has to be given as a list" # make return exception or something
+        case "def":
+            if isinstance(payload, str): # checking array only accepts ONE payload type
+                return f'{{ type: "def", name: {{ type: "string" }}, payload: {payload_to_string_v1(type_str=payload)} }}'
+            else:
+                return "Def payload can only be of one type" # make return exception or something
+        case _:
+            return "" # make return exception or something
+
+
+def json_payload_to_string(payload:Any) -> str | list[str]:
+    # paylaod has to be of type JSON but that's difficult to describe
+    # use json schemas??
+    payload = json.loads(payload) # unpack payload from JSON
+    if isinstance(payload, bool):
+        return '{ type: "bool" }'
+    elif isinstance(payload, str):
+        return '{ type: "string" }'
+    elif payload is None:
+        return '{ type: "null" }'
+    elif isinstance(payload, (int, float, complex)):
+        return '{ type: "number" }'
+    elif isinstance(payload, list):
+        # case array
+        if len({type(x) for x in payload}) == 1: # checking case array elements are of the same type
+            return f'{{ type: "array", payload: {json_payload_to_string(payload=json.dumps(payload[0]))} }}'
+        # case union or tuple? return list of both options?
+        else:
+            elements = [json_payload_to_string(json.dumps(i)) for i in payload]
+            return [f'{{ type: "tuple", payload: [ ' + ", ".join(elements) + ' ] }}',
+                    f'{{ type: "tuple", payload: [ ' + ", ".join(list(set(elements))) + ' ] }}']
+    elif isinstance(payload, dict): # maybe check keys are strings ALWAYS?
+        if all(isinstance(key, str) for key in payload):
+            if len(payload) == 1: # if dict only has one element it could be def or record??
+                return [f'{{ type: "def", name: {{ type: "string" }}, payload: {json_payload_to_string(json.dumps(payload))} }}',
+                        f'{{ type: "def", payload: [{json_payload_to_string(json.dumps(payload))}] }}']
+            # if 2+ elems then definitely record
+            else:
+                elements = [json_payload_to_string(json.dumps(i)) for i in list(payload.values())] # iterate through all values of keys
+                return f'{{ type: "record", payload: [ ' + ", ".join(list(set(elements))) + ' ] }}'
+        else:
+            return "All keys in a def or record type have to be strings" # make return exception or something
+
+    else:
+        return "This is not a type that is handled as payload by the proxy" # make return exception or something
