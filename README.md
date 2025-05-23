@@ -35,7 +35,7 @@ Payload descriptions in sessions always start with '{ type:'  and end with ' }'.
 
 **Booleans**: '{ type: "bool" }'
 
-**Strings**: '{ type: "string" }'
+**String**: '{ type: "string" }'
 
 **None**: '{ type: "null" }'
 
