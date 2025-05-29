@@ -153,14 +153,16 @@ def session_into_message(session: Session) -> str:
 #-- Create payload string easier --------------------------------------------------------
 
 # Literals for allowed parameter strings
-BasicTypes = Literal["boolean", "string", "none", "number"] # does it have to be all upper case? 
-AllTypes = Literal["boolean", "string", "none", "number", "array", "tuple", "union", "def", "record"]
+BasicTypes = Literal["bool", "string", "none", "number"] # does it have to be all upper case? 
+AllTypes = Literal["bool", "string", "none", "number", "array", "tuple", "union", "def", "record"]
 PayloadTypes = Union[AllTypes, list[AllTypes], None]
 
 def payload_to_string(type_str:AllTypes, payload:PayloadTypes=None) -> str:
     # separate parameters of array, tuple, etc.??
+    # paylaod types has to be str or list of strings
+    # maybe check all types for union are unique?
     match type_str:
-        case "boolean":
+        case "bool":
             return '{ type: "bool" }'
         case "string":
             return '{ type: "string" }'
@@ -177,7 +179,7 @@ def payload_to_string(type_str:AllTypes, payload:PayloadTypes=None) -> str:
             # don't need a length because list of types gives us length alraedy
             if isinstance(payload, list):
                 elements = [payload_to_string(i) for i in payload]
-                return f'{{ type: "{type}", payload: [ ' + ", ".join(elements) + ' ] }}'
+                return f'{{ type: "{type_str}", payload: [' + ", ".join(elements) + '] }'
             else:
                 return "Payload has to be given as a list" # make return exception or something
         case "def":
@@ -195,6 +197,7 @@ def json_payload_to_string(payload:Any) -> str:
     # pif def or record bc. only one elem, then do def
     # if tuple or union, then do tuple
     # maybe give option? idk idk, bc. then you'd just use payload_to_string
+    # but couls still give list of preferences...
     unpacked:Any = json.loads(payload) # unpack payload from JSON
     if isinstance(unpacked, bool):
         return '{ type: "bool" }'
@@ -206,24 +209,31 @@ def json_payload_to_string(payload:Any) -> str:
         return '{ type: "number" }'
     elif isinstance(unpacked, list):
         items = cast(list[Any], unpacked) # declaring type of list so no type errors
-        if len(items) == 1: # checking case array elements are of the same type
-            return f'{{ type: "array", payload: {json_payload_to_string(payload=json.dumps(unpacked[0]))} }}'
+        if all(isinstance(a, type(items[0])) for a in items): # checking case array elements are of the same type
+            return f'{{ type: "array", payload: {json_payload_to_string(payload=json.dumps(items[0]))} }}'
         # case union or tuple? return list of both options?
         else:
             elements:list[str] = [json_payload_to_string(json.dumps(i)) for i in items]
-            return f'{{ type: "tuple", payload: [ ' + ", ".join(elements) + ' ] }}'
+            return f'{{ type: "tuple", payload: [' + ", ".join(elements) + '] }'
     elif isinstance(unpacked, dict): # maybe check keys are strings ALWAYS?
         defined_dict = cast(dict[Any, Any], unpacked) # declaring dict generally to avoid type errors
         if all(isinstance(key, str) for key in defined_dict.keys()):
             # as_dict:dict[str, Any] = unpacked
             if len(defined_dict) == 1: # if dict only has one element it could be def or record?? but do def!
-                return f'{{ type: "def", name: {{ type: "string" }}, payload: {json_payload_to_string(json.dumps(unpacked))} }}'
+                # get first key and then first value with that
+                val = defined_dict[list(defined_dict.keys())[0]]
+                return f'{{ type: "def", name: {{ type: "string" }}, payload: {json_payload_to_string(json.dumps(val))} }}'
             # if 2+ elems then definitely record
             else:
                 elements = [json_payload_to_string(json.dumps(i)) for i in list(defined_dict.values())] # iterate through all values of keys
-                return f'{{ type: "record", payload: [ ' + ", ".join(list(set(elements))) + ' ] }}'
+                return f'{{ type: "record", payload: [' + ", ".join(list(elements)) + '] }'
         else:
             return "All keys in a def or record type have to be strings" # make return exception or something
 
     else:
         return "This is not a type that is handled as payload by the proxy" # make return exception or something
+
+if __name__ == "__main__":
+    print(payload_to_string('tuple', ['number', 'number', 'string', 'bool']))
+    print(payload_to_string('union', ['number', 'string', 'bool']))
+    print(payload_to_string('record', ['number', 'string', 'bool']))
