@@ -157,7 +157,7 @@ BasicTypes = Literal["boolean", "string", "none", "number"] # does it have to be
 AllTypes = Literal["boolean", "string", "none", "number", "array", "tuple", "union", "def", "record"]
 PayloadTypes = Union[AllTypes, list[AllTypes], None]
 
-def payload_to_string_v1(type_str:AllTypes, payload:PayloadTypes=None) -> str:
+def payload_to_string(type_str:AllTypes, payload:PayloadTypes=None) -> str:
     # separate parameters of array, tuple, etc.??
     match type_str:
         case "boolean":
@@ -170,54 +170,57 @@ def payload_to_string_v1(type_str:AllTypes, payload:PayloadTypes=None) -> str:
             return '{ type: "number" }'
         case "array":
             if isinstance(payload, str): # checking array only accepts ONE payload type
-                return f'{{ type: "array", payload: {payload_to_string_v1(type_str=payload)} }}'
+                return f'{{ type: "array", payload: {payload_to_string(type_str=payload)} }}'
             else:
                 return "Array payload can only be of one type" # make return exception or something
         case ("tuple" | "union" | "record"):
             # don't need a length because list of types gives us length alraedy
             if isinstance(payload, list):
-                elements = [payload_to_string_v1(i) for i in payload]
+                elements = [payload_to_string(i) for i in payload]
                 return f'{{ type: "{type}", payload: [ ' + ", ".join(elements) + ' ] }}'
             else:
                 return "Payload has to be given as a list" # make return exception or something
         case "def":
             if isinstance(payload, str): # checking array only accepts ONE payload type
-                return f'{{ type: "def", name: {{ type: "string" }}, payload: {payload_to_string_v1(type_str=payload)} }}'
+                return f'{{ type: "def", name: {{ type: "string" }}, payload: {payload_to_string(type_str=payload)} }}'
             else:
                 return "Def payload can only be of one type" # make return exception or something
         case _:
             return "" # make return exception or something
 
 
-def json_payload_to_string(payload:Any) -> str | list[str]:
+def json_payload_to_string(payload:Any) -> str:
     # paylaod has to be of type JSON but that's difficult to describe
     # use json schemas??
-    payload = json.loads(payload) # unpack payload from JSON
-    if isinstance(payload, bool):
+    # pif def or record bc. only one elem, then do def
+    # if tuple or union, then do tuple
+    # maybe give option? idk idk, bc. then you'd just use payload_to_string
+    unpacked:Any = json.loads(payload) # unpack payload from JSON
+    if isinstance(unpacked, bool):
         return '{ type: "bool" }'
-    elif isinstance(payload, str):
+    elif isinstance(unpacked, str):
         return '{ type: "string" }'
-    elif payload is None:
+    elif unpacked is None:
         return '{ type: "null" }'
-    elif isinstance(payload, (int, float, complex)):
+    elif isinstance(unpacked, (int, float, complex)):
         return '{ type: "number" }'
-    elif isinstance(payload, list):
-        # case array
-        if len({type(x) for x in payload}) == 1: # checking case array elements are of the same type
-            return f'{{ type: "array", payload: {json_payload_to_string(payload=json.dumps(payload[0]))} }}'
+    elif isinstance(unpacked, list):
+        items = cast(list[Any], unpacked) # declaring type of list so no type errors
+        if len(items) == 1: # checking case array elements are of the same type
+            return f'{{ type: "array", payload: {json_payload_to_string(payload=json.dumps(unpacked[0]))} }}'
         # case union or tuple? return list of both options?
         else:
-            elements = [json_payload_to_string(json.dumps(i)) for i in payload]
-            return [f'{{ type: "tuple", payload: [ ' + ", ".join(elements) + ' ] }}',
-                    f'{{ type: "tuple", payload: [ ' + ", ".join(list(set(elements))) + ' ] }}']
-    elif isinstance(payload, dict): # maybe check keys are strings ALWAYS?
-        if all(isinstance(key, str) for key in payload):
-            if len(payload) == 1: # if dict only has one element it could be def or record??
-                return [f'{{ type: "def", name: {{ type: "string" }}, payload: {json_payload_to_string(json.dumps(payload))} }}',
-                        f'{{ type: "def", payload: [{json_payload_to_string(json.dumps(payload))}] }}']
+            elements:list[str] = [json_payload_to_string(json.dumps(i)) for i in items]
+            return f'{{ type: "tuple", payload: [ ' + ", ".join(elements) + ' ] }}'
+    elif isinstance(unpacked, dict): # maybe check keys are strings ALWAYS?
+        defined_dict = cast(dict[Any, Any], unpacked) # declaring dict generally to avoid type errors
+        if all(isinstance(key, str) for key in defined_dict.keys()):
+            # as_dict:dict[str, Any] = unpacked
+            if len(defined_dict) == 1: # if dict only has one element it could be def or record?? but do def!
+                return f'{{ type: "def", name: {{ type: "string" }}, payload: {json_payload_to_string(json.dumps(unpacked))} }}'
             # if 2+ elems then definitely record
             else:
-                elements = [json_payload_to_string(json.dumps(i)) for i in list(payload.values())] # iterate through all values of keys
+                elements = [json_payload_to_string(json.dumps(i)) for i in list(defined_dict.values())] # iterate through all values of keys
                 return f'{{ type: "record", payload: [ ' + ", ".join(list(set(elements))) + ' ] }}'
         else:
             return "All keys in a def or record type have to be strings" # make return exception or something
