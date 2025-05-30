@@ -153,14 +153,24 @@ def session_into_message(session: Session) -> str:
 #-- Create payload string easier --------------------------------------------------------
 
 # Literals for allowed parameter strings
-BasicTypes = Literal["bool", "string", "none", "number"] # does it have to be all upper case? 
 AllTypes = Literal["bool", "string", "none", "number", "array", "tuple", "union", "def", "record"]
 PayloadTypes = Union[AllTypes, list[AllTypes], None]
 
 def payload_to_string(type_str:AllTypes, payload:PayloadTypes=None) -> str:
-    # separate parameters of array, tuple, etc.??
-    # paylaod types has to be str or list of strings
-    # maybe check all types for union are unique?
+    '''
+    Create a string that represents a payload that can be given to session declarations.
+
+    Note:
+    - AllTypes type is any of these strings: "bool", "string", "none", "number", "array", "tuple", "union", "def", "record"
+    - PayloadTypes is any of the AllTypes string or a list containing any of them
+        
+        Args:
+            type_str (AllTypes): string saying which allowed payload type will be created
+            payload (PayloadTypes=None): optional string or list of strings describing extra payloads (for tupless, arrays, unions and records)
+        
+        Returns:
+            str: string representation of the payload
+    '''
     match type_str:
         case "bool":
             return '{ type: "bool" }'
@@ -174,30 +184,40 @@ def payload_to_string(type_str:AllTypes, payload:PayloadTypes=None) -> str:
             if isinstance(payload, str): # checking array only accepts ONE payload type
                 return f'{{ type: "array", payload: {payload_to_string(type_str=payload)} }}'
             else:
-                return "Array payload can only be of one type" # make return exception or something
+                raise ParsingError("Array payload can only be of one type")
         case ("tuple" | "union" | "record"):
-            # don't need a length because list of types gives us length alraedy
             if isinstance(payload, list):
-                elements = [payload_to_string(i) for i in payload]
+                elements = [payload_to_string(i) for i in payload] # get all types of payloads inside
+                if type_str == "union": # check no types are repeated for unions
+                    elements = list(dict.fromkeys(elements)) # removes duplicates in list while preserving order
                 return f'{{ type: "{type_str}", payload: [' + ", ".join(elements) + '] }'
             else:
-                return "Payload has to be given as a list" # make return exception or something
+                raise ParsingError("Payload has to be given as a list")
         case "def":
             if isinstance(payload, str): # checking array only accepts ONE payload type
                 return f'{{ type: "def", name: {{ type: "string" }}, payload: {payload_to_string(type_str=payload)} }}'
             else:
-                return "Def payload can only be of one type" # make return exception or something
+                raise ParsingError("Def payload has to be given as a string")
         case _:
-            return "" # make return exception or something
+            raise ParsingError("This payload couldn't be turned into a string")
 
 
 def json_payload_to_string(payload:Any) -> str:
-    # paylaod has to be of type JSON but that's difficult to describe
-    # use json schemas??
-    # pif def or record bc. only one elem, then do def
-    # if tuple or union, then do tuple
-    # maybe give option? idk idk, bc. then you'd just use payload_to_string
-    # but couls still give list of preferences...
+    '''
+    Analyzes a JSON object and makes a payload string (as accepted in session descriptions) describing its type.
+
+    Note:
+    - All lists with only one element get defined as type "array"
+    - All lists with more than one element get defined as type "tuple" (so no unions)
+    - All dicts with only one element get defined as type "def"
+    - All dicts with more than one element get defined as type "record"
+        
+        Args:
+            payload (JSON object): optional string or list of strings describing extra payloads (for tupless, arrays, unions and records)
+        
+        Returns:
+            str: string representation of the payload
+    '''
     unpacked:Any = json.loads(payload) # unpack payload from JSON
     if isinstance(unpacked, bool):
         return '{ type: "bool" }'
@@ -218,7 +238,6 @@ def json_payload_to_string(payload:Any) -> str:
     elif isinstance(unpacked, dict): # maybe check keys are strings ALWAYS?
         defined_dict = cast(dict[Any, Any], unpacked) # declaring dict generally to avoid type errors
         if all(isinstance(key, str) for key in defined_dict.keys()):
-            # as_dict:dict[str, Any] = unpacked
             if len(defined_dict) == 1: # if dict only has one element it could be def or record?? but do def!
                 # get first key and then first value with that
                 val = defined_dict[list(defined_dict.keys())[0]]
@@ -228,12 +247,15 @@ def json_payload_to_string(payload:Any) -> str:
                 elements = [json_payload_to_string(json.dumps(i)) for i in list(defined_dict.values())] # iterate through all values of keys
                 return f'{{ type: "record", payload: [' + ", ".join(list(elements)) + '] }'
         else:
-            return "All keys in a def or record type have to be strings" # make return exception or something
-
+            # technically won't happen because JSON makes all keys strings but just in case
+            raise ParsingError("All keys in a def or record type have to be strings")
     else:
-        return "This is not a type that is handled as payload by the proxy" # make return exception or something
-
-if __name__ == "__main__":
-    print(payload_to_string('tuple', ['number', 'number', 'string', 'bool']))
-    print(payload_to_string('union', ['number', 'string', 'bool']))
-    print(payload_to_string('record', ['number', 'string', 'bool']))
+        # technically shouldn't be possible to reach here but just in case
+        raise ParsingError ("This is not a type that is handled as payload by the proxy")
+    
+# define custom exceptions for parsing errors
+class ParsingError(Exception):
+    """Exception raised for errors in parsing"""
+    def __init__(self, message:str="Parsing failed"):
+        self.message = message
+        super().__init__(self.message)

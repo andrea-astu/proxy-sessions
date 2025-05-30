@@ -228,4 +228,21 @@ def test_payload_record():
 def test_payload_union():
     assert payload_to_string('union', ['number', 'string', 'bool']) == '{ type: "union", payload: [{ type: "number" }, { type: "string" }, { type: "bool" }] }'
 
+def test_payload_union_unique():
+    assert payload_to_string('union', ['number', 'bool', 'bool']) == '{ type: "union", payload: [{ type: "number" }, { type: "bool" }] }'
+
+
 # -- Failing payload parsing/creation tests ----------------------------------------------------------------------------------
+
+# define your payload
+def test_types_array_list():
+    with pytest.raises(ParsingError, match="Array payload can only be of one type"):
+        payload_to_string('array', ['number', 'string'])
+
+def test_types_not_as_list():
+    with pytest.raises(ParsingError, match="Payload has to be given as a list"):
+        payload_to_string('tuple', 'number')
+
+def test_types_not_as_str():
+    with pytest.raises(ParsingError, match="Def payload has to be given as a string"):
+        payload_to_string('def', ['number'])
