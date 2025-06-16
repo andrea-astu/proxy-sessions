@@ -8,9 +8,11 @@ import asyncio
 import json
 import argparse
 
+from typing import Any
+
 # in order to write sessions and convert them to or from strings
 from session_logic.session_types import *
-from session_logic.parsers import session_into_message # to convert session to str
+from session_logic.parsers import session_into_message, payload_to_string # to convert session to str
 
 from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets
 
@@ -26,8 +28,12 @@ async def ws_server(websocket:WebSocketServerProtocol):
     try:
         while True:
 
-            # define sessions and transform them to strings in order to send them to proxy as a JSON object
+            # use functions to create payload strings for payload types
+            two_num_recv = payload_to_string("tuple", ["number", "number"])
+            num_payload = payload_to_string("number")
+            str_payload = payload_to_string("string")
 
+            # define sessions and transform them to strings in order to send them to proxy as a JSON object
             protocol_a_session = Def(
             name="A",
             cont=Choice(
@@ -35,38 +41,34 @@ async def ws_server(websocket:WebSocketServerProtocol):
                 alternatives={
                     Label("Add"): Single(
                         dir=Dir("recv"),
-                        payload='{ type: "number" }',
+                        payload=two_num_recv,
                         cont=Single(
-                            dir=Dir("recv"),
-                            payload='{ type: "number" }',
-                            cont=Single(
-                                dir=Dir("send"),
-                                payload='{ type: "number" }',
-                                cont=Ref("A")
-                            )
+                            dir=Dir("send"),
+                            payload=num_payload,
+                            cont=Ref("A")
                         )
                     ),
                     Label("Neg"): Single(
                         dir=Dir("recv"),
-                        payload='{ type: "number" }',
+                        payload=num_payload,
                         cont=Single(
                             dir=Dir("send"),
-                            payload='{ type: "number" }',
+                            payload=num_payload,
                             cont=Ref("A")
                         )
                     ),
                     Label("Greeting"): Single(
                         dir=Dir("recv"),
-                        payload='{ type: "string" }',
+                        payload=str_payload,
                         cont=Single(
                             dir=Dir("send"),
-                            payload='{ type: "string" }',
+                            payload=str_payload,
                             cont=Ref("A")
                         )
                     ),
                     Label("Goodbye"): Single(
                         dir=Dir("send"),
-                        payload='{ type: "string" }',
+                        payload=str_payload,
                         cont=Ref("A")
                     ),
                     Label("Quit"): End()
@@ -79,17 +81,13 @@ async def ws_server(websocket:WebSocketServerProtocol):
             cont=Choice(
                 dir=Dir("send"),
                 alternatives={
-                    Label("Divide"): Single(
+                    Label("Divide"):  Single(
                         dir=Dir("recv"),
-                        payload='{ type: "number" }',
+                        payload=two_num_recv,
                         cont=Single(
-                            dir=Dir("recv"),
-                            payload='{ type: "number" }',
-                            cont=Single(
-                                dir=Dir("send"),
-                                payload='{ type: "number" }',
-                                cont=Ref("B")
-                            )
+                            dir=Dir("send"),
+                            payload=num_payload,
+                            cont=Ref("B")
                         )
                     ),
                     Label("List"): Single(
@@ -111,45 +109,46 @@ async def ws_server(websocket:WebSocketServerProtocol):
 
             # send protocols to proxy
             print("Sending protocols to proxy...")
-            await websocket.send(json.dumps(protocol_a_str))
-            await websocket.send(json.dumps(protocol_b_str))
-            await websocket.send(json.dumps("Session: End")) # signals we are done sending protocols
+            await send(websocket, protocol_a_str)
+            await send(websocket, protocol_b_str)
+            await send(websocket, "Session: End") # signals we are done sending protocols
 
             while True:
                 # receive protocol info
-                protocol = json.loads(await websocket.recv())
+                protocol = await receive(websocket)
                 print(f'Got protocol {protocol}')
 
                 # process previously defined prtocols
                 match protocol:
                     case "A":
                         # choose option in protocol
-                        action = json.loads(await websocket.recv())
-                        # action refers to a specific session inside a protocol
+                        action = await receive(websocket)
                         print(f'Doing action: {action}')
+                        # action refers to a specific session inside a protocol
 
                         match action:
                             case "Add":
-                                a = json.loads(await websocket.recv()) # receive number
-                                b = json.loads(await websocket.recv()) # receive number
-                                c = a + b
-                                await websocket.send(json.dumps(c)) # convert payload to json and send to proxy
+                                nums = await receive(websocket) # payload
+                                c = int(nums[0]) + int(nums[1])
+                                await send(websocket, c) # convert payload to json and send to proxy
                                 print(f'Sent payload: {c}')
-                            
+                             
                             case "Neg":
-                                a = json.loads(await websocket.recv()) # receive number
-                                b = -a
-                                await websocket.send(json.dumps(b)) # convert payload to json and send to proxy
+                                a = await receive(websocket) # payload
+                                b = -int(a)
+                                await send(websocket, b) # convert payload to json and send to proxy
                                 print(f'Sent payload: {b}')
                             
                             case "Greeting":
-                                name = json.loads(await websocket.recv()) # receive name
+                                name = await receive(websocket) # payload
                                 nickname = name[:3] # first three letters of name
-                                await websocket.send(json.dumps(nickname)) # send changed name
+                                await send(websocket, nickname) # send changed name
+                                print('Sent payload')
 
                             case "Goodbye":
-                                await websocket.send(json.dumps("May we meet again"))
-                            
+                                await send(websocket, "May we meet again")
+                                print('Sent payload')
+
                             case "Quit":
                                 break
 
@@ -158,24 +157,22 @@ async def ws_server(websocket:WebSocketServerProtocol):
 
                     
                     case "B":
-                        # choose option in protocol
-                        action = json.loads(await websocket.recv())
-                        print(f'Doing action {action}')
+                         # choose option in protocol
+                        action = await receive(websocket)
+                        # action refers to a specific session inside a protocol
+                        print(f'Doing action: {action}')
 
                         match action:
                             case "Divide":
-                                num1 = json.loads(await websocket.recv())
-                                num2 = json.loads(await websocket.recv())
-                                division = num1 / num2
-                                await websocket.send(json.dumps(division)) # send result of division
-
+                                nums = await receive(websocket) # payload
+                                division = int(nums[0]) / int(nums[1])
+                                await send(websocket, division) # send result of division
                             
                             case "List":
-                                sentence = json.loads(await websocket.recv()) # receive string
+                                sentence = await receive(websocket) # receive string -> payload
                                 new_list = sentence.split() # split a sentence by spaces
-                                await websocket.send(json.dumps(new_list))
-                                
-                            
+                                await send(websocket, new_list)
+                                 
                             case "Quit":
                                 break
 
@@ -185,7 +182,7 @@ async def ws_server(websocket:WebSocketServerProtocol):
 
                     case _:
                         print(f'This protocol is not recognized') # could be handled as an exception
-                        await websocket.send("Session: End")
+                        await send(websocket, "Session: End")
     # handle ok and unexpected connections
     except websockets.ConnectionClosedOK:
         print("Client connection finished...")
@@ -195,8 +192,26 @@ async def ws_server(websocket:WebSocketServerProtocol):
         print(f"Unexpected server error: {e}")
     finally:
         await websocket.close()
- 
- 
+
+
+ # -- [Description] -----------------------------------------------------------------------------------------
+async def receive(websocket)-> Any: # return type list?
+    proxy_msg = json.loads(await websocket.recv())
+    print(proxy_msg) # debugging
+    if "500" not in proxy_msg[0]: # ok?
+        raise SessionError(f"Receiving Error {proxy_msg[0]}")
+    elif len(proxy_msg) > 1: # if not only error or success code in proxy
+        return proxy_msg[1] # return everything in message that is left
+    
+async def send(websocket, message:Any): # return smthng?
+    print(f"sending {type(message)}") # debugging
+    await websocket.send(json.dumps(message))
+    proxy_msg = json.loads(await websocket.recv())
+    if "500" not in proxy_msg:
+        raise SessionError(f"Sending Error {proxy_msg}")
+    # print("message sent ok") # debugging
+
+# -- [Description] -----------------------------------------------------------------------------------------
 async def main(port:int):
     '''
     Creates a WebSocket server that listens on localhost:7890.

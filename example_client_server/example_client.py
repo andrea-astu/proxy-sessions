@@ -3,27 +3,11 @@ import asyncio
 import json # to send and receive payloads
 import time # to keep console opened for a bit after code is finished
 
-def confirm_server_payload(message:str):
-    '''
-    Checks if there was an error with the schema validation according to the proxy and terminates the client if there is.
-
-    Args:
-        message: the payload from the message. If something went wrong, then it'll be a string that says "Error: schema validation failed"
-    
-    Returns:
-        The message payload if there were no schema errors.
-    '''
-    if message == "Error: schema validation failed":
-        print("There has been an error with the server payload. Closing client...")
-        time.sleep(5)
-        exit()
-    else: return message
-
-
+from typing import Any
  
 async def ws_client():
     '''
-    Handles connection and sends and receives payloads according to interation with user.
+    Handles connection and sends and receives payloads according to interaCtion with user.
     '''
     try:
         print("Connecting client...")
@@ -35,43 +19,60 @@ async def ws_client():
 
             # Greeting procedure
             name = input("Hi! What is your name?: ")
-            await ws.send(json.dumps("Protocol: A")) # choosing protocol
-            await ws.send(json.dumps("Greeting")) # choosing "action" (session in a protocol)
-            await ws.send(json.dumps(name)) # sending info
-            nickname = confirm_server_payload(json.loads(await ws.recv()))
+            await send(ws, "Protocol: A") # choosing protocol
+            await send(ws, ["Greeting", name]) # choosing "action" (session in a protocol) and sending payload
+            nickname = await receive(ws)
             print(f'Your assigned nickname is: {nickname}')
             
             # negation
-            await ws.send(json.dumps("Neg")) # choosing "action"
             given_num = input(f'{nickname}, please give a number to negate: ')
-            await ws.send(json.dumps(int(given_num)))
-            neg_result = confirm_server_payload(json.loads(await ws.recv()))
+            await send(ws, ["Neg", int(given_num)]) # choosing "action" and sendinf payload
+            neg_result = await receive(ws)
             print(f'The negated number is: {neg_result}')
 
             # Adding a number!
-            await ws.send(json.dumps("Add")) # choosing "action"
             age_person = input(f'{nickname}, please tell me your age: ')
             age_other = input(f"{nickname}, please tell me someone else's age: ")
-            await ws.send(json.dumps(int(age_person)))
-            await ws.send(json.dumps(int(age_other)))
-            combined_ages = confirm_server_payload(json.loads(await ws.recv()))
+            await send(ws, ["Add", [int(age_person), int(age_other)]]) # choosing "action" and sending payload along with it
+            combined_ages = await receive(ws)
             print(f'The ages of you and the other person combined are: {str(combined_ages)}')
 
 
             # Goodbye procedure
-            await ws.send(json.dumps("Goodbye")) # choosing "action"
-            farewell = confirm_server_payload(json.loads(await ws.recv()))
+            await send(ws, "Goodbye") # choosing "action"
+            farewell = await receive(ws)
             print(f'{farewell} {nickname}!')
 
             # close code
-            await ws.send(json.dumps("Quit")) # quit protocol
+            await send(ws, "Quit") # quit protocol
+            # await receive(ws) # still get error or success code bc. "Quit" is still an action in the protocol
             print("Client code finished. Closing terminal in 5 seconds ...")
             time.sleep(5)
     except:
-        print("Connection with proxy interrupted, most likely due to wrong payload sent from client.")
+        print("Connection with proxy interrupted.")
         print("Closing client in 5 seconds...")
         time.sleep(5)
         exit()
- 
+
+# [ADD DESCRIPTION]
+async def receive(websocket)-> Any: # return type list?
+    proxy_msg = json.loads(await websocket.recv())
+    if "500" not in proxy_msg[0]: # ok?
+        print(f"Error {proxy_msg[0]}")
+        print("The client will close itself in 5 seconds...")
+        time.sleep(5)
+        exit()
+    elif len(proxy_msg) > 1: # if not only error or success code in proxy
+        return proxy_msg[1] # return everything in message that is left
+    
+async def send(websocket, message:Any):
+    await websocket.send(json.dumps(message))
+    proxy_msg = json.loads(await websocket.recv())
+    if "500" not in proxy_msg:
+        print(f"Error {proxy_msg}")
+        print("The client will close itself in 5 seconds...")
+        time.sleep(5)
+        exit()
+
 # Start the client code
 asyncio.run(ws_client())
