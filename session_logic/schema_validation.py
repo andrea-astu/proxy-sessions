@@ -65,7 +65,7 @@ def schema_def(name: str, payload_type:str) -> JsonSchema:
 def schema_array(type_array:str) -> JsonSchema:
    '''
     Function that returns a JSONSchema based on a a payload of type array.
-    An array has a variable length but all elemnets should be of same type.
+    An array has a variable length but all elements should be of same type.
 
         Args:
             type_array (str): str to define type of payload inside array so it can later be checked by a schema.

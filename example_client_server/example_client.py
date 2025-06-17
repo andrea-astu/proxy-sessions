@@ -1,9 +1,15 @@
+# to be able to use modules from other files
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# for sending/receiving with proxy + proxy error exceptions
+from session_logic.helpers import *
+
 import websockets
 import asyncio
-import json # to send and receive payloads
 import time # to keep console opened for a bit after code is finished
 
-from typing import Any
  
 async def ws_client():
     '''
@@ -46,33 +52,17 @@ async def ws_client():
             # close code
             await send(ws, "Quit") # quit protocol
             # await receive(ws) # still get error or success code bc. "Quit" is still an action in the protocol
-            print("Client code finished. Closing terminal in 5 seconds ...")
-            time.sleep(5)
-    except:
-        print("Connection with proxy interrupted.")
+            print("Client code finished.")
+    except websockets.exceptions.ConnectionClosed:
+        print(f"Connection lost, most likely due to a timeout")
+    except ProxyError as e:
+        print(e)
+    except Exception as e:
+        print("Unexpected error {e}")
+    finally:
         print("Closing client in 5 seconds...")
         time.sleep(5)
-        exit()
+        exit()  
 
-# [ADD DESCRIPTION]
-async def receive(websocket)-> Any: # return type list?
-    proxy_msg = json.loads(await websocket.recv())
-    if "500" not in proxy_msg[0]: # ok?
-        print(f"Error {proxy_msg[0]}")
-        print("The client will close itself in 5 seconds...")
-        time.sleep(5)
-        exit()
-    elif len(proxy_msg) > 1: # if not only error or success code in proxy
-        return proxy_msg[1] # return everything in message that is left
-    
-async def send(websocket, message:Any):
-    await websocket.send(json.dumps(message))
-    proxy_msg = json.loads(await websocket.recv())
-    if "500" not in proxy_msg:
-        print(f"Error {proxy_msg}")
-        print("The client will close itself in 5 seconds...")
-        time.sleep(5)
-        exit()
-
-# Start the client code
+#-- Start the client code ------------------------------------------------------------------------------------------
 asyncio.run(ws_client())

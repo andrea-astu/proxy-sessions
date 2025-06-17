@@ -5,16 +5,16 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import websockets
 import asyncio
-import json
 import argparse
-
-from typing import Any
 
 # in order to write sessions and convert them to or from strings
 from session_logic.session_types import *
 from session_logic.parsers import session_into_message, payload_to_string # to convert session to str
 
 from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets
+
+# for sending/receiving with proxy + proxy error exceptions
+from session_logic.helpers import *
 
 async def ws_server(websocket:WebSocketServerProtocol):
     '''
@@ -183,33 +183,19 @@ async def ws_server(websocket:WebSocketServerProtocol):
                     case _:
                         print(f'This protocol is not recognized') # could be handled as an exception
                         await send(websocket, "Session: End")
-    # handle ok and unexpected connections
+    # handle ok and unexpected connections and errors
+    except ProxyError as e:
+        print(e)
+    except websockets.exceptions.ConnectionClosed:
+        print(f"Connection lost, most likely due to a timeout")
     except websockets.ConnectionClosedOK:
         print("Client connection finished...")
     except websockets.ConnectionClosedError:
         print("Error: Client connection lost unexpectedly.")
     except Exception as e:
-        print(f"Unexpected server error: {e}")
+        print(f"Unexpected error {e}")
     finally:
         await websocket.close()
-
-
- # -- [Description] -----------------------------------------------------------------------------------------
-async def receive(websocket)-> Any: # return type list?
-    proxy_msg = json.loads(await websocket.recv())
-    print(proxy_msg) # debugging
-    if "500" not in proxy_msg[0]: # ok?
-        raise SessionError(f"Receiving Error {proxy_msg[0]}")
-    elif len(proxy_msg) > 1: # if not only error or success code in proxy
-        return proxy_msg[1] # return everything in message that is left
-    
-async def send(websocket, message:Any): # return smthng?
-    print(f"sending {type(message)}") # debugging
-    await websocket.send(json.dumps(message))
-    proxy_msg = json.loads(await websocket.recv())
-    if "500" not in proxy_msg:
-        raise SessionError(f"Sending Error {proxy_msg}")
-    # print("message sent ok") # debugging
 
 # -- [Description] -----------------------------------------------------------------------------------------
 async def main(port:int):

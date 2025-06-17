@@ -125,7 +125,7 @@ class GlobalDict:
         else:
             return self.records[name]
 
-# --- define errors snd exceptions  --------------------------------------------------------------------------------------
+# --- define errors and exceptions  --------------------------------------------------------------------------------------
 
 class SchemaValidationError(Exception):
     """Exception raised for errors in schema validation."""

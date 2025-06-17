@@ -76,7 +76,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                         # check the payload type being transported matches the payload types defined in the sessions
                         try:
                             print("awaiting server payload") # debugging
-                            payload = await server_socket.recv() # server has to send payload!
+                            payload = await receive("server", client_socket, server_socket) # server has to send payload!
                             print(schema_validation.checkPayload(payload, ses_server_actual.payload, ses_client_actual.payload))
                             await client_socket.send(json.dumps(["500: Operation succesful.", payload])) # transport payload if type is ok
                             payload = None # rest payload
@@ -140,7 +140,7 @@ async def define_protocols(server_socket:WebSocketClientProtocol, client_socket:
             server_socket (WebsocketClientProtocol): socket of the server
             client_socket (WebsocketServerProtocol): socket of the client
     '''
-    session_as_str = json.loads(await server_socket.recv()) # first protocol; minimum one has to be defined
+    session_as_str = json.loads(await receive("server", client_socket, server_socket)) # first protocol; minimum one has to be defined
     # define server session
     try: # too long or ok? specially bc. it can fail bc. of dif. things
         protocol_definition_server = message_into_session(session_as_str, "server") # send type to session conversion so it can be added to name
@@ -154,7 +154,7 @@ async def define_protocols(server_socket:WebSocketClientProtocol, client_socket:
 
         # define more protocols
         while protocol_definition_server.kind != "end":
-            session_as_str = json.loads(await server_socket.recv())
+            session_as_str = json.loads(await receive("server", client_socket, server_socket))
             protocol_definition_server = message_into_session(session_as_str, "server")
             match (protocol_definition_server):
                 case End():
@@ -189,7 +189,7 @@ async def proxy_websockets(server:WebSocketClientProtocol, websocket_client:WebS
         await define_protocols(server, websocket_client) # errors already handled inside function
     
         while True:
-            protocol_name = json.loads(await websocket_client.recv()) # client chooses protocol 
+            protocol_name = json.loads(await receive("client", websocket_client, server)) # client chooses protocol 
             protocol_name = protocol_name[10:] # protocol message structure: "Protocol: ___" 
             print(f'Executing protocol {protocol_name}...') # to track what proxy is doing at moment -> could be removed
             # get both client and server sessions by referencing protocol
@@ -199,7 +199,7 @@ async def proxy_websockets(server:WebSocketClientProtocol, websocket_client:WebS
             # recursively carry out sessions until we get two "End" sessions back
             while actual_ses_server.kind != "end" and actual_ses_client.kind != "end":
                 await server.send(json.dumps(["500: Operation succesful.", protocol_name])) # always have to tell server which protocol is being used
-                command = json.loads(await websocket_client.recv()) # action name; ok code sent in handle_session after checking payload part of command
+                command = json.loads(await receive("client", websocket_client, server)) # action name; ok code sent in handle_session after checking payload part of command
                 try:
                     assert isinstance(command[0], str), "Command should be string" # to ensure command is string
                 except:
@@ -210,11 +210,13 @@ async def proxy_websockets(server:WebSocketClientProtocol, websocket_client:WebS
                                                                             websocket_client, server_parser, client_parser, command)
     # handle ok and unexpected connections
     except (websockets.ConnectionClosedOK, websockets.ConnectionClosedError):
-        print("Client connection terminated. Closing connections ...")
+        print("Connection terminated") # more specific client or server would be good!
     except (SchemaValidationError) as e:
         print(f"{e}. Restarting ...")
+    except TimeoutError as e:
+        print(f"{e}")
     except Exception as e:
-        await send_code(400, server, websocket_client)
+        await send_code(402, server, websocket_client)
         print(f"Unexpected error in proxy: {e}")
     finally:
         await server.close()
@@ -242,20 +244,45 @@ async def start_proxy(proxy_address: int, server_address: str):
             except Exception as e:
                 print(f"Error in handler: {e}")
             finally:
-                print("Handler finished ...")
+                # print("Handler finished ...")
                 stop_event.set()  # Trigger stop when all clients are gone
 
     try:
         server = await serve(handler, "localhost", proxy_address)
         print("Proxy started, waiting for client...")
         await stop_event.wait()  # Exit when stop_event is set
-        print("Closing connection with server...")
+        # print("Closing connection with server...") 
         server.close()
         await server.wait_closed()  # Ensure server fully shuts down
     except Exception:
         print(f"The proxy encountered an error. Please try again!")
 
-#-- Define proxy errors + success message ----------------------------------------------------------------------------------
+# -- Handle timeouts ----------------------------------------------------------------------------------------------------------------------
+async def receive(socket:Literal["server","client"], client_socket:WebSocketServerProtocol, server_socket:WebSocketClientProtocol) -> Any:
+    '''
+    Returns: message by client OR server
+    '''
+    try:
+        match socket:
+            case "client":
+                return await asyncio.wait_for(client_socket.recv(), timeout=30) # give it two minutes
+            case "server":
+                return await asyncio.wait_for(server_socket.recv(), timeout=30) # give it two minutes
+            # add case _?
+    except asyncio.TimeoutError:
+        match socket:
+            case "client":
+                await send_code(400, server_socket, client_socket)
+                raise TimeoutError("Client timeout error")
+            case "server":
+                await send_code(401, server_socket, client_socket)
+                raise TimeoutError("Server timeout error")
+            case _:
+                raise TimeoutError("Timeout error")
+                await send_code(402, server_socket, client_socket) # proxy error because timeout should be either with server or client
+                raise websockets.ConnectionClosedError
+
+#-- Define proxy errors + success messages and exceptions ----------------------------------------------------------------------------------
 
 async def send_code(code:int, server_socket:WebSocketClientProtocol, client_socket:WebSocketServerProtocol, info:str=""):
      # repeated strings
@@ -264,52 +291,64 @@ async def send_code(code:int, server_socket:WebSocketClientProtocol, client_sock
     server_prob_error = "1011: There was an error with the server."
     client_prob_error = "1010: There was an error with the client."
     print(f"Success/Failure code: {code}") # debug
+    # sending "reason" with messages so client/server don't catch error message from proxy in case they were sending something
     match code:
         # 4th num: 1 is for when server caused, 0 is when client did
         case 1010:
             await client_socket.send(json.dumps(payload_error + f" ({info}).")) # add details of schema error?
             await server_socket.send(json.dumps(client_prob_error))
-            await client_socket.close() # close conenction -> try it out
+            await client_socket.close(reason=payload_error + f" ({info}).") # close conenction -> try it out
         case 1011:
             await client_socket.send(json.dumps(server_prob_error))
             await server_socket.send(json.dumps(payload_error + f" ({e})")) # add details of schema error?
             # for server error, close connection with both
-            await client_socket.close()
-            await server_socket.close()
+            await client_socket.close(reason=server_prob_error)
+            await server_socket.close(reason=payload_error + f" ({e})")
         case 201:
             await server_socket.send(json.dumps("201: There was an error defining the protocol. Please check the session syntax."))
             await client_socket.send(json.dumps(server_prob_error))
             # for server error, close connection with both
-            await client_socket.close()
-            await server_socket.close()
+            await client_socket.close(reason=server_prob_error)
+            await server_socket.close(reason="201: There was an error defining the protocol. Please check the session syntax.")
         case 301:
             # not sure if client prob. or server prob...
-            await client_socket.send(json.dumps("301: This __ does not match the defined session."))
-            await client_socket.close()
+            await client_socket.send(json.dumps("301: Defined session not matched."))
+            await client_socket.close(reason="301: Defined session not matched.")
         case 302:
             await server_socket.send(json.dumps("302: Invalid direction or it does not match the defined one."))
             await client_socket.send(json.dumps(server_prob_error))
             # not sure if client prob. or server prob. ....
-            await client_socket.close()
-            await server_socket.close()
+            await client_socket.close(reason=server_prob_error)
+            await server_socket.close(reason="302: Invalid direction or it does not match the defined one.")
         case 303:
             await client_socket.send(json.dumps("303: This action is not defined in the protocol."))
             await server_socket.send(json.dumps(client_prob_error))
-            await client_socket.close()
+            await client_socket.close(reason="303: This action is not defined in the protocol.")
         case 304:
             await client_socket.send(json.dumps("304: The action must be given as a string."))
             await server_socket.send(json.dumps(client_prob_error))
-            await client_socket.close()
+            await client_socket.close(reason="304: The action must be given as a string.")
         case 305:
             await client_socket.send(json.dumps("305: This protocol cannot be found."))
             await server_socket.send(json.dumps(client_prob_error))
-            await client_socket.close()
+            await client_socket.close(reason="305: This protocol cannot be found.")
         case 400:
-            await client_socket.send(json.dumps("400: Unexpected error in proxy."))
-            await server_socket.send(json.dumps("400: Unexpected error in proxy."))
+            await client_socket.send(json.dumps("400: Timeout error"))
+            await server_socket.send(json.dumps("400: Client timeout error"))
+            # disconnect from client only; tell it there was a timeout error
+            await client_socket.close(reason="400: Timeout error")
+        case 401:
+            await client_socket.send(json.dumps("401: Server timeout error"))
+            await server_socket.send(json.dumps("401: Timeout error"))
+            # disconnect with both
+            await client_socket.close(reason="401: Server timeout error")
+            await server_socket.close(reason="401: Timeout error")
+        case 402:
+            await client_socket.send(json.dumps("402: Unexpected error in proxy."))
+            await server_socket.send(json.dumps("402: Unexpected error in proxy."))
             # for proxy error, disconnect with both
-            await client_socket.close()
-            await server_socket.close()
+            await client_socket.close(reason="402: Unexpected error in proxy.")
+            await server_socket.close(reason="402: Unexpected error in proxy.")
         case 500: # signal success for both
             await client_socket.send(json.dumps("500: Operation succesful."))
             await server_socket.send(json.dumps("500: Operation succesful."))
@@ -317,6 +356,12 @@ async def send_code(code:int, server_socket:WebSocketClientProtocol, client_sock
             await client_socket.send(json.dumps("500: Operation succesful."))
         case 5001: # server success
             await server_socket.send(json.dumps("500: Operation succesful."))
+
+class TimeoutError(Exception):
+    """Exception raised for timeout errors caused by client or server"""
+    def __init__(self, message:str="Timeout error"):
+        self.message = message
+        super().__init__(self.message)
 
 # -- start code ------------------------------------------------------------------------------------------------------------
 
