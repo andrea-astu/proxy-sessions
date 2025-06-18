@@ -83,7 +83,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                             print("Message sent from server to client") # to track what proxy is doing at moment -> could be removed
                             await send_code(5001, server_socket, client_socket)
                         except Exception as e:
-                            print(f"prob sending payload: {json.loads(payload)}") # debugging
+                            print(f"Problem sending payload: {json.loads(payload)}") # debugging
                             await send_code(1011, server_socket, client_socket, e)
                             return End(), End()
                     case _:
@@ -107,7 +107,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                     actual_sessions = (ses_server_actual.lookup(Label(action)), ses_client_actual.lookup(Label(action))) # next sessions will be singles
                     await server_socket.send(json.dumps(["500: Operation succesful.", action])) # let server know about command only if it IS a valid one
                     if not payload: # if no payload, means server is sending and therefore client waits for ok of action
-                        await send_code(500, server_socket, client_socket)
+                        await send_code(5000, server_socket, client_socket) # o.g. 500
                 except Exception as e:
                     await send_code(303, server_socket, client_socket)
                     return End(), End()
@@ -198,6 +198,7 @@ async def proxy_websockets(server:WebSocketClientProtocol, websocket_client:WebS
             await send_code(5000, server, websocket_client) # tell client protocol reference went ok
             # recursively carry out sessions until we get two "End" sessions back
             while actual_ses_server.kind != "end" and actual_ses_client.kind != "end":
+                print(f"protocol name: {protocol_name}") # debugging
                 await server.send(json.dumps(["500: Operation succesful.", protocol_name])) # always have to tell server which protocol is being used
                 command = json.loads(await receive("client", websocket_client, server)) # action name; ok code sent in handle_session after checking payload part of command
                 try:
@@ -205,7 +206,7 @@ async def proxy_websockets(server:WebSocketClientProtocol, websocket_client:WebS
                 except:
                     await send_code(304, server, websocket_client)
                     actual_ses_server, actual_ses_client = End(), End() # so handler returns end sessions and conenction is ended
-                # carry out action    
+                # carry out action
                 actual_ses_server, actual_ses_client = await handle_session(actual_ses_server, actual_ses_client, server, #  carries out exchange dictated in that protocol's action 
                                                                             websocket_client, server_parser, client_parser, command)
     # handle ok and unexpected connections
