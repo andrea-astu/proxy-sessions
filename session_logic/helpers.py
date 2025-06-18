@@ -26,7 +26,7 @@ async def receive(websocket:ClientProtocol|WebSocketServerProtocol)-> Any:
         payload = proxy_msg[1]
     else:
         message = proxy_msg
-    if "500" not in message: # handle errors
+    if "502" not in message: # handle errors
         raise ProxyError("Proxy error " + proxy_msg)
     if payload: # if not only error or success code in proxy
         return payload # return everything in message that is left
@@ -45,7 +45,7 @@ async def send(websocket:ClientProtocol|WebSocketServerProtocol, message:Any):
         """
         await websocket.send(json.dumps(message))
         proxy_msg = json.loads(await websocket.recv())
-        if "500" not in proxy_msg:
+        if "502" not in proxy_msg:
             raise ProxyError("Proxy error " + proxy_msg)
         
 # -- Define exceptions -------------------------------------------------------------------------------------------------
