@@ -78,7 +78,7 @@ async def handle_session(ses_server: Session, ses_client: Session, server_socket
                             print("awaiting server payload") # debugging
                             payload = await receive("server", client_socket, server_socket) # server has to send payload!
                             print(schema_validation.checkPayload(payload, ses_server_actual.payload, ses_client_actual.payload))
-                            await client_socket.send(json.dumps(["500: Operation succesful.", payload])) # transport payload if type is ok
+                            await client_socket.send(json.dumps(["500: Operation succesful.", json.loads(payload)])) # transport payload if type is ok
                             payload = None # rest payload
                             print("Message sent from server to client") # to track what proxy is doing at moment -> could be removed
                             await send_code(5001, server_socket, client_socket)
