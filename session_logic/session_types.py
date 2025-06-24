@@ -24,11 +24,12 @@ class Session:
 
 @dataclass
 class Single(Session):
-    def __init__(self, dir: Dir, payload:str, cont: Session):
+    def __init__(self, dir: Dir, payload:str, cont: Session, actor:str=None):
         super().__init__("single")
         self.dir = dir
         self.payload = payload
         self.cont = cont
+        self.actor = actor # for multiparty sessions
 
 @dataclass
 class Choice(Session):

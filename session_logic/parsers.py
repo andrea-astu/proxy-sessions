@@ -21,7 +21,7 @@ def client_parser_func(message:Any):
 
 #-- String <--> Session Parsers --------------------------------------------------------
 
-def message_into_session(ses_info:str, type_socket:str="") -> Session:
+def message_into_session(ses_info:str, type_socket:Literal["send", "recv"]="") -> Session:
     '''
     Parses a string and transforms into into a session object.
 
@@ -40,8 +40,13 @@ def message_into_session(ses_info:str, type_socket:str="") -> Session:
 
         # single session
         if ses_info.startswith("Single"):
+            # pattern for normal client-server proxy
             pattern = r"Single, Dir: (.*?), Payload: (.*?), Cont: (.*)"
             match = re.match(pattern, ses_info)
+
+            # pattern for multiparty proxy
+            patternMulti = r"Single, Dir: (.*?), Actor: (.*?), Payload: (.*?), Cont: (.*)"
+            matchMulti = re.match(patternMulti, ses_info)
             if match:
                 dir_given, pay_given, cont_ses = match.groups()
                 match (dir_given, type_socket):
@@ -57,6 +62,10 @@ def message_into_session(ses_info:str, type_socket:str="") -> Session:
                         print("Error: invalid direction given") # not handled as exception but could be
                 #return single session and parse the cont str to make it a session too
                 session_changed = Single(dir=Dir(dir_given), payload=pay_given, cont=message_into_session(cont_ses, type_socket))
+            elif matchMulti:
+                dir_given, actor_given, pay_given, cont_ses = match.groups()
+                #return single session and parse the cont str to make it a session too
+                session_changed = Single(dir=Dir(dir_given), payload=pay_given, cont=message_into_session(cont_ses, type_socket))
             else:
                 raise SessionError("Error parsing message into session: wrong syntax")
 
@@ -68,7 +77,10 @@ def message_into_session(ses_info:str, type_socket:str="") -> Session:
                 name_given, cont_ses = match.groups()
                 # print(f"Parsing protocol {name_given}") # comment put to debug
                 # recursively parse choice sessions defined in protocol with "cont"
-                session_changed = Def(name=f"{name_given}_{type_socket}", cont=message_into_session(cont_ses, type_socket))
+                if type_socket != "":
+                    session_changed = Def(name=f"{name_given}_{type_socket}", cont=message_into_session(cont_ses, type_socket))
+                else:
+                    session_changed = Def(name=f"{name_given}", cont=message_into_session(cont_ses, type_socket))
             else:
                 raise SessionError("Error parsing message into session: wrong syntax")
 
@@ -119,10 +131,16 @@ def session_into_message(session: Session) -> str:
             str: string representation of the session
     '''
     if isinstance(session, Single):
-        return (
-            f"Session: Single, Dir: {session.dir}, Payload: {session.payload}, "
-            f"Cont: {session_into_message(session.cont)}"
-        )
+        if session.actor:
+            return (
+                f"Session: Single, Dir: {session.dir}, Actor: {session.actor}, Payload: {session.payload}, "
+                f"Cont: {session_into_message(session.cont)}"
+            )
+        else:
+            return (
+                f"Session: Single, Dir: {session.dir}, Payload: {session.payload}, "
+                f"Cont: {session_into_message(session.cont)}"
+            )
     
     elif isinstance(session, Def):
         return (
