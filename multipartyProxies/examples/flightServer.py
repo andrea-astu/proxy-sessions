@@ -9,7 +9,7 @@ import argparse
 
 # in order to write sessions and convert them to or from strings
 from session_logic.session_types import *
-from session_logic.parsers import session_into_message, payload_to_string # to convert session to str
+from session_logic.parsers import session_into_message, payload_to_string, message_into_session # to convert session to str
 
 from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets
 
@@ -158,6 +158,7 @@ async def ws_server(websocket:WebSocketServerProtocol):
         await send(websocket, cargoControlSes_str)
         await send(websocket, passportControlSes_str)
         await send(websocket, "Session: End") # signals we are done sending protocols
+        print("Protcols sent.")
 
     # handle ok and unexpected connections and errors -> check which is ok end of connection :)
     except ProxyError as e:

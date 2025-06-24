@@ -139,6 +139,5 @@ if __name__ == "__main__":
     print("Connecting with server ...")
     try:
         asyncio.run(serverCode(server_address))
-        print(protocol_info) # debugging
     except Exception as e:
         print(f"The proxy encountered an error. Please try again!")

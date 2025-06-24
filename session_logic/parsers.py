@@ -47,7 +47,12 @@ def message_into_session(ses_info:str, type_socket:Literal["send", "recv"]="") -
             # pattern for multiparty proxy
             patternMulti = r"Single, Dir: (.*?), Actor: (.*?), Payload: (.*?), Cont: (.*)"
             matchMulti = re.match(patternMulti, ses_info)
-            if match:
+
+            if matchMulti:
+                dir_given, actor_given, pay_given, cont_ses = matchMulti.groups()
+                #return single session and parse the cont str to make it a session too
+                session_changed = Single(dir=Dir(dir_given), actor=actor_given, payload=pay_given, cont=message_into_session(cont_ses, type_socket))
+            elif match:
                 dir_given, pay_given, cont_ses = match.groups()
                 match (dir_given, type_socket):
                     case ("send", "server"):
@@ -60,10 +65,6 @@ def message_into_session(ses_info:str, type_socket:Literal["send", "recv"]="") -
                         dir_given = "send"
                     case _:
                         print("Error: invalid direction given") # not handled as exception but could be
-                #return single session and parse the cont str to make it a session too
-                session_changed = Single(dir=Dir(dir_given), payload=pay_given, cont=message_into_session(cont_ses, type_socket))
-            elif matchMulti:
-                dir_given, actor_given, pay_given, cont_ses = match.groups()
                 #return single session and parse the cont str to make it a session too
                 session_changed = Single(dir=Dir(dir_given), payload=pay_given, cont=message_into_session(cont_ses, type_socket))
             else:
